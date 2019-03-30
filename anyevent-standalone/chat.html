@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=UTF-8">
+<title>Chat Example</title>
+<script src="jquery-3.3.1.min.js"></script>
+<style>
+
+.ws-conn { float: right; }
+.chatlog {
+	width: 640px; height: 400px;
+	padding: 4px;
+	border: 1px solid black;
+	font-family: courier, sans-serif, monospace;
+	white-space: pre-wrap;
+	overflow-y: scroll;
+}
+.chatline { width: 640px; }
+.chatline input { display: inline-block; width: 80%; }
+.chatline button { display: inline-block; width: 15%; }
+
+</style>
+<script>
+
+window.chat= {
+	init: function(ws_uri) {
+		var self= this;
+		this.ws_uri= ws_uri;
+		$('.ws-conn span').css('display','none');
+		$('.ws-conn button').on('click', function(event) { self.reconnect(); });
+		$('.chatline input').on('keypress', function(event) { self.onkeypress(event.originalEvent) });
+		$('.chatline button').on('click', function(event) { self.onsend(event) });
+		self.reconnect();
+	},
+	reconnect: function() {
+		var self= this;
+		if (this.ws) return;
+		// Connect WebSocket to local event server
+		this.ws= new WebSocket(this.ws_uri);
+		this.ws.onopen= function(event) {
+			$('.ws-conn button').css('display','none');
+			$('.ws-conn span').css('display','block');
+		};
+		this.ws.onmessage= function(event) { console.log('onmessage',event); self.onmessage(event) };
+		this.ws.onclose= function(event) {
+			$('.ws-conn button').css('display','block');
+			$('.ws-conn span').css('display','none');
+			self.ws= null;
+		};
+	},
+	onmessage: function(event) {
+		$('.chatlog').append(document.createTextNode(event.data+"\n"));
+	},
+	onkeypress: function(event) {
+		if (event.key == 'Enter')
+			this.onsend();
+	},
+	onsend: function(event) {
+		var text= $('.chatline input').val();
+		if (text) {
+			this.ws.send(text);
+			$('.chatline input').val('');
+		}
+	}
+};
+
+$(document).ready(function() {
+	window.chat.init(
+		/^file/.test(window.location)? 'ws://localhost:5000'
+		: 'ws://' + window.location.host.replace(/:[0-9]*/, ':5000')
+	);
+});
+
+</script>
+</head>
+<body>
+	<div class='ws-conn'>
+		<button>Reconnect</button>
+		<span style="color:green; display:none">Connected</span>
+	</div>
+	<div class='chatlog'></div>
+	<div class='chatline'>
+		<input type="text"/>
+		<button>Send</button>
+	</div>
+</body>
+</html>
