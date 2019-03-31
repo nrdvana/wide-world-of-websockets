@@ -6,7 +6,6 @@
 <script src="jquery-3.3.1.min.js"></script>
 <style>
 
-.ws-conn { float: right; }
 .chatlog {
 	width: 640px; height: 400px;
 	padding: 4px;
@@ -26,30 +25,33 @@ window.chat= {
 	init: function(ws_uri) {
 		var self= this;
 		this.ws_uri= ws_uri;
-		$('.ws-conn span').css('display','none');
-		$('.ws-conn button').on('click', function(event) { self.reconnect(); });
 		$('.chatline input').on('keypress', function(event) { self.onkeypress(event.originalEvent) });
 		$('.chatline button').on('click', function(event) { self.onsend(event) });
-		self.reconnect();
+		$('.connect-ui button').on('click', function(event) { self.connect(); });
+		$('.chatline').css('display','none');
 	},
-	reconnect: function() {
+	connect: function() {
 		var self= this;
-		if (this.ws) return;
-		// Connect WebSocket to local event server
-		this.ws= new WebSocket(this.ws_uri);
-		this.ws.onopen= function(event) {
-			$('.ws-conn button').css('display','none');
-			$('.ws-conn span').css('display','block');
-		};
-		this.ws.onmessage= function(event) { console.log('onmessage',event); self.onmessage(event) };
-		this.ws.onclose= function(event) {
-			$('.ws-conn button').css('display','block');
-			$('.ws-conn span').css('display','none');
-			self.ws= null;
-		};
+		var username= $('.connect-ui input').val();
+		if (!this.ws) {
+			// Connect WebSocket and initialize events
+			console.log('connecting WebSocket to '+this.ws_uri);
+			this.ws= new WebSocket(this.ws_uri+'?username='+encodeURIComponent(username));
+			this.ws.onopen= function(event) {
+				$('.connect-ui').css('display','none');
+				$('.chatline').css('display','block');
+			};
+			this.ws.onmessage= function(event) { self.onmessage(event) };
+			this.ws.onclose= function(event) {
+				$('.connect-ui').css('display','block');
+				$('.chatline').css('display','none');
+				self.ws= null;
+			};
+		}
 	},
 	onmessage: function(event) {
-		$('.chatlog').append(document.createTextNode(event.data+"\n"));
+		$('.chatlog').append(document.createTextNode(event.data+"\n"))
+			.scrollTop($('.chatlog')[0].scrollHeight);
 	},
 	onkeypress: function(event) {
 		if (event.key == 'Enter')
@@ -67,21 +69,21 @@ window.chat= {
 $(document).ready(function() {
 	window.chat.init(
 		/^file/.test(window.location)? 'ws://localhost:5000'
-		: 'ws://' + window.location.host.replace(/:[0-9]*/, ':5000')
+		: window.location.replace(/^http/, 'ws').replace(/\.html$/, '.io')
 	);
 });
 
 </script>
 </head>
 <body>
-	<div class='ws-conn'>
-		<button>Reconnect</button>
-		<span style="color:green; display:none">Connected</span>
-	</div>
 	<div class='chatlog'></div>
 	<div class='chatline'>
 		<input type="text"/>
 		<button>Send</button>
+	</div>
+	<div class='connect-ui'>
+		User Name <input type="text"/>
+		<button>Connect</button>
 	</div>
 </body>
 </html>
