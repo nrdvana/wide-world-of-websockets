@@ -67,9 +67,10 @@ window.chat= {
 };
 
 $(document).ready(function() {
+	var loc= '' + window.location;
 	window.chat.init(
-		/^file/.test(window.location)? 'ws://localhost:5000'
-		: window.location.replace(/^http/, 'ws').replace(/\.html$/, '.io')
+		/^file/.test(loc)? 'ws://localhost:5000'
+		: loc.replace(/^http/, 'ws').replace(/\.html$/, '.io')
 	);
 });
 
