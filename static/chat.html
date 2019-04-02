@@ -70,7 +70,7 @@ $(document).ready(function() {
 	var loc= '' + window.location;
 	window.chat.init(
 		/^file/.test(loc)? 'ws://localhost:5000'
-		: loc.replace(/^http/, 'ws').replace(/\.html$/, '.io')
+		: loc.replace(/^http/, 'ws').replace(/\/?[^\/]+$/, '/chat.io')
 	);
 });
 

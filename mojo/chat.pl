@@ -2,6 +2,8 @@
 use Mojolicious::Lite;
 my %connections;
 
+get '/' => sub { shift->redirect_to('chat.html') };
+
 websocket '/chat.io' => sub {
 	my $c= shift;
 	my $username= $c->req->params->param('username');
