@@ -29,7 +29,7 @@ tcp_server undef, 5000, sub {
 		# If username is taken, reject with a message
 		if ($connections{$username}) {
 			$conn->send("Username is taken");
-			$conn->disconnect;
+			$conn->close;
 		}
 		else {
 			$connections{$username}= $conn;
