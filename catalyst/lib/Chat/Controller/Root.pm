@@ -1,6 +1,8 @@
 package Chat::Controller::Root;
 use Moose;
 use namespace::autoclean;
+use Protocol::WebSocket::Handshake::Server;
+use AnyEvent::WebSocket::Connection;
 
 BEGIN { extends 'Catalyst::Controller' }
 
@@ -30,9 +32,81 @@ The root page (/)
 
 sub index :Path :Args(0) {
     my ( $self, $c ) = @_;
+	$c->res->redirect('/chat.html');
+}
 
-    # Hello World
-    $c->response->body( $c->welcome_message );
+=head2 chat.io
+
+This is the action for the websocket.
+
+=cut
+
+has connections => ( is => 'rw', default => sub { +{} } );
+
+sub chat_io :Path('chat.io') :Args(0) {
+	my ($self, $c)= @_;
+	my $username= $c->req->param('username');
+	my $env= $c->req->env;
+	if (!$env->{'psgix.io'}) {
+		# Must be using a PSGI server that exposes the file handle to us
+		_respond_err($c, 500, 'psgix.io not supported by this server');
+	}
+	elsif (!$env->{'psgi.nonblocking'}) {
+		# Can't do anything useful with a websocket unless the webserver is
+		# written with an I/O event loop
+		_respond_err($c, 500, 'Nonblocking communication not supported by this server');
+	}
+	elsif (!$c->req->headers->header('Sec-Websocket-Key')) {
+		# Early (obsolete) versions of WebSocket required reading additional body bytes,
+		# which is awkward to do in a nonblocking manner.  If the client supplied this
+		# header, we can skip that mess.  If not, just refuse the connection.
+		_respond_err($c, 400, 'Unsupported version of WebSocket');
+	}
+	else {
+		# Construct AnyEvent-based handshake from PSGI env of the request
+		my $server_hs= Protocol::WebSocket::Handshake::Server->new_from_psgi($env);
+		$server_hs->parse(undef); # no additional bytes to read, due to version check above
+		# Catalyst really really wants to write the headers, so let it do that
+		$c->res->code($server_hs->res->status);
+		$c->res->headers(HTTP::Headers->new(@{$server_hs->res->headers}));
+		$c->res->finalized_headers(1);
+		# This triggers the header-write.
+		my $writer= $c->res->write_fh;
+		# Now Catalyst thinks we will continue writing using that $writer object, but we skip that
+		# and just write directly to the psgix.io handle.
+		my $fh= $env->{'psgix.io'};
+		my $ev_handle= AnyEvent::Handle->new(fh => $fh);
+		my $conn= AnyEvent::WebSocket::Connection->new(handle => $ev_handle, max_payload_size => 10_000_000);
+		# If username is taken, reject with a message
+		if ($self->connections->{$username}) {
+			$conn->send("Username is taken");
+			$conn->close;
+		}
+		else {
+			$self->connections->{$username}= $conn;
+			$conn->on(each_message => sub { my @args= @_; eval { $self->handle_message($username, @args); 1 } || warn $@ });
+			$conn->on(finish => sub { delete $self->connections->{$username}; undef $writer });
+		}
+		$c->detach();
+	}
+}
+
+sub _respond_err {
+	my ($c, $code, $message)= @_;
+	$c->res->code($code);
+	$c->res->content_type('text/plain; charset=utf-8');
+	$c->res->body($message);
+	$c->log->error($message);
+}
+
+sub handle_message {
+	my ($self, $username, $conn, $msg)= @_;
+	# Messages can be several different types.  We only care about text.
+	if ($msg->is_text) {
+		my $text= $username . ': ' . $msg->decoded_body;
+		# re-broadcast message to every connection, prefixed with connection name
+		$_->send($text) for values %{$self->connections};
+	}
 }
 
 =head2 default
@@ -54,10 +128,6 @@ Attempt to render a view, if needed.
 =cut
 
 sub end : ActionClass('RenderView') {}
-
-=head1 AUTHOR
-
-MLC,,,
 
 =head1 LICENSE
 
