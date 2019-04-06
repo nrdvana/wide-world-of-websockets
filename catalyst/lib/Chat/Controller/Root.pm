@@ -3,6 +3,7 @@ use Moose;
 use namespace::autoclean;
 use Protocol::WebSocket::Handshake::Server;
 use AnyEvent::WebSocket::Connection;
+use AnyEvent::WebSocket::Server;
 
 BEGIN { extends 'Catalyst::Controller' }
 
@@ -63,30 +64,31 @@ sub chat_io :Path('chat.io') :Args(0) {
 		_respond_err($c, 400, 'Unsupported version of WebSocket');
 	}
 	else {
-		# Construct AnyEvent-based handshake from PSGI env of the request
-		my $server_hs= Protocol::WebSocket::Handshake::Server->new_from_psgi($env);
-		$server_hs->parse(undef); # no additional bytes to read, due to version check above
-		# Catalyst really really wants to write the headers, so let it do that
-		$c->res->code($server_hs->res->status);
-		$c->res->headers(HTTP::Headers->new(@{$server_hs->res->headers}));
-		$c->res->finalized_headers(1);
-		# This triggers the header-write.
-		my $writer= $c->res->write_fh;
+		# Fool catalyst into thinking it gave us a writer object
+		$c->res->{_writer}= 1;
+		$c->res->{write_fh}= 1;
+		my $responder= $c->res->_response_cb or die "Unexpected Catalyst state";
 		# Now Catalyst thinks we will continue writing using that $writer object, but we skip that
 		# and just write directly to the psgix.io handle.
 		my $fh= $env->{'psgix.io'};
-		my $ev_handle= AnyEvent::Handle->new(fh => $fh);
-		my $conn= AnyEvent::WebSocket::Connection->new(handle => $ev_handle, max_payload_size => 10_000_000);
-		# If username is taken, reject with a message
-		if ($self->connections->{$username}) {
-			$conn->send("Username is taken");
-			$conn->close;
-		}
-		else {
-			$self->connections->{$username}= $conn;
-			$conn->on(each_message => sub { my @args= @_; eval { $self->handle_message($username, @args); 1 } || warn $@ });
-			$conn->on(finish => sub { delete $self->connections->{$username}; undef $writer });
-		}
+		AnyEvent::WebSocket::Server->new->establish_psgi($env)->cb(sub {
+			my ($conn)= eval { shift->recv };
+			if ($@) {
+				warn "Rejected connection: $@\n";
+				close($fh);
+				return;
+			}
+			# If username is taken, reject with a message
+			if ($self->connections->{$username}) {
+				$conn->send("Username is taken");
+				$conn->close;
+			}
+			else {
+				$self->connections->{$username}= $conn;
+				$conn->on(each_message => sub { my @args= @_; eval { $self->handle_message($username, @args); 1 } || warn $@ });
+				$conn->on(finish => sub { delete $self->connections->{$username}; undef $responder });
+			}
+		});
 		$c->detach();
 	}
 }
