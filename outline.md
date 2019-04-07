@@ -31,19 +31,33 @@ on best strategies.
   * Server gets to choose how often to poll for presence of client
   * Heavily loaded server will poll less.  If clients poll, server might go down.
 
-### Example: Mining BitCoin on Browsers
-
-  (joke)
-
 ### Example: Telephony
 
   * Server wants to know if it can deliver calls to client
   * Client is acting like a server for incoming calls
 
+### Example: Mining BitCoin on Browsers
+
+  (joke)
+
+### Example: Waiting for job in queue, and job progress
+
+  * 400 in queue, up to 400 websockets listening.
+  * Each time back-end job starts, broadcast to web workers
+  * 399 "new position" notifications go out
+  * 1 connection gets progress updates until job complete
+
 ### Example: iPad Apps
 
   * Want responsive UI via web
   * Show off slide software
+
+## Support for WebSockets
+
+  * Final draft published end of 2011
+  * No support on IE before IE10
+  * Everyone else has support since 2012
+  * Most proxies have added support by now
 
 ## Event Driven Programming
 
@@ -91,11 +105,12 @@ on best strategies.
   * Clean minimalist API
   * Lots of callbacks, beware memory leaks
   * Popular ecosystem
-  * See mailing list for past drama
+  * Some past drama with author
 
 ### IO::Async
 
-  * 
+  * More structured than AnyEvent
+  * Less awkward than POE
 
 ### Mojo::IOLoop
 
@@ -113,14 +128,28 @@ on best strategies.
 
 ### Others
 
-## Event-Driven Limitations
-
-
 ## Websocket Design Considerations vs. MVC
 
-  * MVC worker pool is useful
-  * Lose that when establishing long-lived connections
-  * Can reconnect automatically with Javascript
+  * MVC often uses worker pool, not single process.  WebSocket easiest
+    with single process, though WebSocket worker pool is a good goal.
+    Need to plan for IPC between websocket workers.
+    * Example with directory of unix sockets
+  * Most MVC not fully event-driven.  Rewrite is hard.
+  * Can have Controller fork off slow tasks; Minion / MessageQueue
+
+  * Worker pool can freely loose workers without interruption
+  * WebSocket best with long-lived processes, though can reconnect
+    automatically with Javascript
+
+## Should My MVC Controller handle WebSockets?
+
+  * Nice to share Session between WebSocket and controller
+  * Probably also sharing a Model, but must be async capable
+  * SSL must be handled upstream (TODO: check implementations)
+  * To live in same process, controller must be fuly event-driven
+  * Can receive request with controller then forward
+    socket to WebSocket app.
+  * Can fork off child to handle each websocket; resources permitting
 
 ## Websockets in Apps
 
