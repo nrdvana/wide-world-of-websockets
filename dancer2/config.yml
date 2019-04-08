@@ -1,0 +1,4 @@
+charset: UTF-8
+plugins:
+  WebSocket:
+    mount_path: /chat.io
