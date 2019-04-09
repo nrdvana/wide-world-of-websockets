@@ -153,43 +153,54 @@ on best strategies.
 
 ## Websockets in Apps
 
-### Standalone Websocket Server
+### AnyEvent Websocket Server
 
   * Simplest example
-  * SSL awkward, need extra port configured
-  * Workarounds, will come back to this
-  * Nice connection object
+  * Code focused on single purpose
+  * Extra port, SSL to configure
+  * No easy way to tie into web service session
 
 ### Mojo
 
-  * Ecosystem designed for event-driven, makes websockets easy
-  * (TODO: more research)
+  * Ecosystem designed for event-driven code
+  * Seamless websocket integration with web service
+  * Can only cooperate with AnyEvent if both use same backend, LibEV.
 
-### Plack
+### PSGI
 
-  * Awkward callback system allows for websockets
+  * Awkward callback response allows for websockets
   * Requires special support from server
   * Connection details tangled in closures
 
+### Plack
+
+  * Plack::App::WebSocket
+  * Basically just adapts AnyEvent::WebSocket::Server to PSGI
+
 ### Web::Simple
 
-  * Mostly same as Plack
+  * Supports returning PSGI apps, so can use Plack::App::WebSocket
 
 ### Catalyst
 
-  * Catalyst uses Plack callback responder
-  * Hold onto $c
-  * Example
+  * Catalyst *does not* support WebSocket
+  * (unless you reach into private attributes and tweak things)
+  * But based on Plack, so can support websockets in same process
+  * Can't make use of Catalyst request / session from WebSocket code.
 
 ### Dancer
 
-  * Also Plack, and can use responder
-  * Dancer uses lots of globals, so event-driven requires special API
-  * Dancer is pretty, event-driven Dancer not so much
+  * Dancer *mostly doesn't* support WebSocket
+  * There is a websocket plugin for Dancer, but it just adds a single instance
+    of Plack::App::WebSocket earlier on the PSGI stack and some convenient linkage
+	to methods of the app.
+  * Can't make use of Dancer request / session from the WebSocket code.
+  * Dancer websocket plugin has dubious behavior of letting everyone connect
 
 ### Web::ConServe
 
-  * One object per request, app object becomes connection object
+  * Supported using AnyEvent-based plugin
+  * One object per request; app object becomes connection context
   * Less closure mess
 
 ### CGI
@@ -199,28 +210,34 @@ on best strategies.
 
 ### Forking from the App
 
-  * Careful handoff of filehandles can work
+  * If blocking app receives WebSocket handshake, can fork off a child
+    as if it were a CGI request.
+  * Must close descriptor to prevent normal response to request
 
-## Deployment
+## Recap of Strategies
 
-  * Need to consider worker pool
+  * One pool of http controller processes, another pool (or single process) for websockets
+  * Event-driven http controllers that also handle websocket events
+  * Process-per-websocket (for small / limited use cases, or very large servers)
 
-### Docker
+### Blocking HTTP controllers with separate WS controllers
 
-  * probably set each continer to be worker pool
+  * Use path-routing frontend, like Traefik, Nginx, or Apache
+  * Use favorite web framework for http, and block as needed
+  * Use AnyEvent or Mojolicious for second websocket service
+  * Use Message broker as needed for linking events between processes
 
-### Nginx
+### Event-driven HTTP + WS controllers
 
-  * Cn reverse-proxy to standalone websocket server!
-
-### Traefik
-
-  * Better reverse proxy
-  * Ties into docker better
-
-
+  * Mojolicious
+  * Raw Plack, or with helper like Web::Simple or Web::ConServe
+  * Maybe job server, like Minion
 
 Websocket Modules:
-  * Protocol::Websocket
+  * Protocol::Websocket (handshake and frame encoder/decoder)
   * Net::WebSocket
-  * Mojolicious::WebSocket
+  * Plack::App::WebSocket
+  * AnyEvent::WebSocket::Server
+  * Mojolicious::WebSocket (only a decoder/encoder for websocket frames)
+  * Web::Hippie
+  * Mercury  (message broker for websockets based on Mojo)
