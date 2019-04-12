@@ -24,6 +24,10 @@ my %jobs;
 my %clients;
 my $wss= AnyEvent::WebSocket::Server->new();
 
+my $j= JSON->new; # methods below are using unicode strings, but encode_json generates UTF-8 bytes
+sub to_json { $j->encode(shift) }
+sub from_json { $j->decode(shift) }
+
 # Listen on port 3456 for incoming connections
 my $next_id= 1;
 tcp_server undef, 3456, sub {
@@ -49,11 +53,11 @@ sub handle_client_message {
 	my ($conn, $msg)= @_;
 	# Messages can be several different types.  We only care about text, and assume them to contain JSON
 	if ($msg->is_text) {
-		my $msg= decode_json($msg->decoded_body);
+		my $msg= from_json($msg->decoded_body);
 		if ($msg->{queue_job}) {
 			my $job_id= $next_id++;
 			$jobs{$job_id}= { name => $msg->{queue_job}, watchers => { conn => $conn } };
-			$conn->send(encode_json({ job_id => $job_id, queue_pos => -1+scalar keys %jobs }));
+			$conn->send(to_json({ job_id => $job_id, queue_pos => -1+scalar keys %jobs }));
 			run_next_job();
 		}
 		elsif ($msg->{watch_job}) {
@@ -62,7 +66,7 @@ sub handle_client_message {
 				$job->{watchers}{$conn}= $conn;
 			}
 			else {
-				$conn->send(encode_json({ error => 'No such job '.$msg->{watch_job} }));
+				$conn->send(to_json({ error => 'No such job '.$msg->{watch_job} }));
 			}
 		}
 	}
@@ -72,7 +76,7 @@ sub handle_client_message {
 sub notify_queue_pos {
 	my @queue= sort { $a <=> $b } keys %jobs;
 	for my $pos (0 .. $#queue) {
-		$_->send(encode_json({ job_id => $queue[$pos], queue_pos => $_ }))
+		$_->send(to_json({ job_id => $queue[$pos], queue_pos => $_ }))
 			for values %{ $jobs{$queue[$pos]}{watchers} // {} };
 	}
 }
@@ -85,13 +89,13 @@ sub run_next_job {
 	my $steps= 10+int(rand 10);
 	my $i= 0;
 	# Send notification that the job is starting
-	$_->send(encode_json({ job_id => $job_id, running => \1, progress => 0 }))
+	$_->send(to_json({ job_id => $job_id, running => \1, progress => 0 }))
 		for values %{ $jobs{$job_id}{watchers} // {} };
 	# Every 1 second, pretend that the job gave is a progress update.  After $steps progress updates,
 	# pretend that the job completes, and then notify the listers and advance to next job in queue.
 	$job_in_progress= AE::timer 1, 1, sub {
 		my $finished= ++$i >= $steps;
-		$_->send(encode_json({ job_id => $job_id, running => \1, finished => $finished? \1:\0, progress => ($i/$steps) }))
+		$_->send(to_json({ job_id => $job_id, running => \1, finished => $finished? \1:\0, progress => ($i/$steps) }))
 			for values %{ $jobs{$job_id}{watchers} // {} };
 		if ($finished) {
 			delete $jobs{$job_id};
