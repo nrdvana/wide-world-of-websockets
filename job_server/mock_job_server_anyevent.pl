@@ -56,7 +56,7 @@ sub handle_client_message {
 		my $msg= from_json($msg->decoded_body);
 		if ($msg->{queue_job}) {
 			my $job_id= $next_id++;
-			$jobs{$job_id}= { name => $msg->{queue_job}, watchers => { conn => $conn } };
+			$jobs{$job_id}= { name => $msg->{queue_job}, watchers => { $conn => $conn } };
 			$conn->send(to_json({ job_id => $job_id, queue_pos => -1+scalar keys %jobs }));
 			run_next_job();
 		}
