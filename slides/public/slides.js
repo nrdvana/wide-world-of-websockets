@@ -1,5 +1,21 @@
+/** WebSocket Slide System
+ *
+ * Apply this to an HTML file and call slides.init(websocket_uri, show_user_interface) 
+ *
+ * The slides are represented by an "ol.slides" with each "li" being a slide.
+ * Each slide can have a multi-stage animation caused by showing or hiding elements.
+ * Each element can be included in one or more frames of animation by giving it data
+ * of "data-step", which is either the frame it becomes visible, or a comma/dash
+ * notation specifying a list of frames.  An element with class "auto-step" will have
+ * its immediate child DOM elements given sequential data-step values.
+ *
+ * Each step can also have a "data-extern" indicating an external event that should 
+ * "go into effect" when that element is shown.  The external event ends when the
+ * element is hidden or when the server says it ends.
+ */
 window.slides= {
 	slide_elems: [],
+	step_elems: [],
 	cur_slide: null,
 	cur_bullets: [],
 	cur_bullet_idx: 0,
@@ -14,7 +30,7 @@ window.slides= {
 		// make a list of DOM nodes for all immediate children of <ol class="slides">
 		self.slide_elems= $('ol.slides > li');
 		// give each of them a sequence number for quick reference
-		self.slide_elems.each(function(idx, e) { $(e).data('slide_num', idx) });
+		self.slide_elems.each(function(idx, e) { self._init_slide(this, idx) });
 		// register key and click handlers
 		$(document).on('keypress', function(e) { return self.handle_key(e.originalEvent); });
 		self.slide_elems.on('click', function(e) { self.handle_click(e) });
@@ -45,6 +61,40 @@ window.slides= {
 		this.show_slide(null);
 		this.reconnect();
 	},
+	_init_slide: function(slide_dom_node, slide_num) {
+		$(slide_dom_node).data('slide_num', slide_num);
+		// Look for .auto-step, and apply step numbers
+		var step_num= 1;
+		slide_dom_node.find('.auto-step').each(function(idx, e) {
+			// If it has a step number, and only one, then start the count of its children from that
+			if (e.data('step') && e.data('step').match(/^[0-9]+$/))
+				step_num= e.data('step');
+			e.children().each(function(){ $(this).data('step', step_num++) });
+		});
+		// do a deep search to find any element with 'data-step' and give it the class of
+		// 'slide-step' for easier selecting later.
+		slide_dom_node.find('*').each(function(){
+			if ($(this).data('step'))
+				$(this).addClass('slide-step');
+		});
+		// Parse each "data-step" specification and replace with an array of ranges
+		// Also calculate the step count
+		var max_step= 0;
+		$(slide_dom_node).find('.slide-step').each(function() {
+			var show_list= $(this).data('step').split(',');
+			for (var i= 0; i < show_list.length; i++) {
+				show_list[i]= show_list[i].split(/-/);
+				show_list[i][0]= parseInt(show_list[i][0]);
+				if (show_list.length > 1)
+					show_list[i][1]= parseInt(show_list[i][1]);
+			}
+			$(this).data('step', show_list);
+			var last= show_list[show_list.length-1];
+			if (max_step < last[last.length-1])
+				max_step= last[last.length-1];
+		});
+		$(slide_dom_node).data('max_step', max_step);
+	},
 	reconnect: function() {
 		var self= this;
 		// Connect WebSocket to local event server
@@ -56,15 +106,16 @@ window.slides= {
 	handle_key: function(e) {
 		//console.log('handle_key', e);
 		if (e.key == 'ArrowRight') {
-			this.next_slide(1);
+			self.show_slide(self.cur_slide+1, 1);
+			this.change_slide(1);
 			return false;
 		}
 		else if (e.key == 'ArrowLeft') {
-			this.next_slide(-1);
+			this.change_slide(-1);
 			return false;
 		}
 		else if (e.key == 'ArrowDown' || e.code == 'Space') {
-			this.next_step();
+			this.step(1);
 			return false;
 		}
 		return true;
@@ -74,30 +125,21 @@ window.slides= {
 		//console.log(e);
 		if (e.currentTarget == self.cur_slide) {
 			self.show_slide(null)
+				&& self.relay_slide_position();
 		}
 		else {
-			self.show_slide(e.currentTarget, 1)
+			self.show_slide(e.currentTarget.data('slide_num'), 0)
+				&& self.relay_slide_position();
 		}
 	},
 	handle_extern_event: function(e) {
 		console.log('recv', e);
 		// If extern visual has closed, advance to the next slide or step
-		if (e['extern_ended'] && e.extern_ended == this.cur_extern) {
-			console.log('end of '+e['extern_ended']+', stepping');
-			if (!self.step_anim(1)) self.next_slide(1,true);
-		}
-		var cur_slide_num= this.cur_slide? $(this.cur_slide).data('slide_num') : null;
-		if (e['slide_num'] && cur_slide_num != e.slide_num) {
-			console.log("at slide",cur_slide_num,'need',e.slide_num, e['step_num']);
-			this.show_slide(this.slide_elems[e.slide_num], e['step_num']!==null, true);
-		}
-		if (('step_num' in e) && e.step_num && e.step_num != this.cur_bullet_idx) {
-			console.log('step_num = ', e['step_num'], 'cur_bullet_idx=', this.cur_bullet_idx);
-			this.cur_bullet_idx= parseInt(e.step_num);
-			this.step_anim(0, true);
-		}
-		cur_slide_num= this.cur_slide? $(this.cur_slide).data('slide_num') : null;
-		console.log('now at',cur_slide_num,this.cur_bullet_idx,'of',this.cur_bullets.length);
+		if (e['extern_ended'] && e.extern_ended == this.cur_extern)
+			this.step_anim(1);
+		// If given a slide position, show it
+		if ('slide_num' in e)
+			this.show_slide(e['slide_num'] || 0, e['step_num'] || 0);
 	},
 	emit_extern_event: function(obj) {
 		console.log('send',obj);
@@ -106,71 +148,55 @@ window.slides= {
 		else
 			console.log("Can't send: ", obj);
 	},
-	next_slide: function(ofs, anim, slave) {
-		//console.log('next_slide',ofs, anim);
+	change_slide: function(ofs) {
+		var next_idx= (this.cur_slide? this.cur_slide : 0) + ofs;
+		if (next_idx < 0) next_idx += this.slide_elems.length;
+		if (next_idx >= this.slide_elems.length) next_idx -= this.slide_elems.length;
+		this.show_slide(next_idx, ofs > 0? 1 : -1)
+			&& self.relay_slide_position();
+	},
+	step_anim: function(ofs) {
 		if (!this.cur_slide) {
-			var slide_num= ofs < 0? this.slide_elems.length-ofs : ofs;
-			this.show_slide(this.slide_elems[slide_num], anim, slave);
+			this.show_slide(1,0);
 		}
 		else {
-			var slide_num= $(this.cur_slide).data('slide_num');
-			this.show_slide(this.slide_elems[slide_num+ofs], anim, slave);
-		}
-	},
-	next_step: function(ofs) {
-		if (!this.step_anim(1)) this.next_slide(1,true);
-	},
-	step_anim: function(ofs, slave) {
-		console.log('step_anim',ofs,slave);
-		if (this.cur_bullets.length) {
-			this.cur_bullet_idx+= ofs;
-			if (this.cur_bullet_idx < this.cur_bullets.length) {
-				$(this.cur_slide).find('.anim .once').css('position','absolute').css('visibility','hidden');
-				if (this.presenter_ui) {
-					$(this.cur_bullets[this.cur_bullet_idx]).css('opacity',1);
-					if (!slave)
-						this.emit_extern_event({
-							slide_num: $(this.cur_slide).data('slide_num'),
-							step_num: this.cur_bullet_idx
-						});
+			var next_slide= this.cur_slide;
+			var next_step= this.cur_step + ofs;
+			while (next_step < 0) {
+				if (! --next_slide) {
+					if (next_step == -1) { next_step= 0; break; }
+					else { next_slide= this.slide_elems.length-1; next_step += 2; }
 				}
-				else {
-					$(this.cur_bullets[this.cur_bullet_idx]).css('position','relative').css('visibility','visible');
-					var extern= $(this.cur_bullets[this.cur_bullet_idx]).attr('data-extern');
-					if (extern) {
-						this.cur_extern= extern;
-						this.emit_extern_event({
-							slide_num: slave? null : $(this.cur_slide).data('slide_num'),
-							step_num: slave? null : this.cur_bullet_idx,
-							extern: this.cur_extern,
-							elem_rect: this.client_rect(this.cur_bullets[this.cur_bullet_idx])
-						});
-					}
+				next_step += $(this.slide_elems[next_slide-1]).data('max_step')+1;
+			}
+			while (next_step > $(this.clide_elems[next_slide-1]).data('max_step')) {
+				next_step -= $(this.clide_elems[next_slide-1]).data('max_step')+1;
+				if (++next_slide >= this.slide_elems.length) {
+					if (next_step == 0) { next_slide= 0; break; }
+					else { next_slide= 1; }
 				}
-				return true;
 			}
 		}
-		return false;
+		self.relay_slide_position();
 	},
 	client_rect: function(elem) {
 		var r= elem.getBoundingClientRect();
 		//console.log(elem, r);
 		return { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
 	},
-	show_slide: function(elem, anim, slave) {
-		console.log(elem, anim, slave, 'cur_extern=',this.cur_extern);
-		if (!elem) {
+	show_slide: function(slide_num, step_num) {
+		var self= this;
+		if (!slide_num) {
 			$(document.documentElement).css('overflow','auto');
-			// Show all anim items
-			$('div.slide .anim li')
-				.css('position','relative').css('visibility','visible');
-			// Show all slides
-			$('div.slide')
+			// Show all steps for each slide
+			this.slide_elems.find('.slide-step')
 				.css('visibility','visible')
-				.css('display','block')
+				.css('position','relative')
+				.css('opacity',1);
+			// Show all slides
+			this.slide_elems.show()
 				.css('height','auto')
 				.css('border','1px solid grey');
-			this.cur_bullets= [];
 			if (this.cur_slide) {
 				var slide= this.cur_slide;
 				document.documentElement.scrollTop= $(slide).offset().top;
@@ -180,50 +206,58 @@ window.slides= {
 			this.emit_extern_event({ slide_num: null, cur_extern: this.presenter_ui? null : '-' });
 		}
 		else {
-			$(document.documentElement).css('overflow','hidden');
-			$('div.slide')
-				.css('visibility','hidden')
-				.css('display','none');
-			var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-			$(elem).css('visibility','visible')
-				.css('display','block')
-				.css('border','none')
-				.height(h);
-			this.cur_slide= elem;
-			var figure= $(elem).find('figure');
-			var prev_extern= this.cur_extern;
-			this.cur_extern= figure.data('extern');
-			if (anim) {
-				this.cur_bullets= $(elem).find('ul.anim li');
-				var from_zero= $(elem).find('ul.from0').length > 0;
-				if (this.cur_bullets.length) {
-					if (this.presenter_ui) {
-						this.cur_bullets.css('opacity', .3);
-					} else {
-						this.cur_bullets.css('visibility','hidden');
-						$(elem).find('.once').css('position','absolute');
-					}
-					this.cur_bullet_idx= -1;
-					if (!from_zero)
-						this.step_anim(1, slave);
-				}
-				else
-					this.cur_bullet_idx= null;
-			} else {
-				this.cur_bullet_idx= null;
-				this.cur_bullets= [];
-				$(elem).find('ul.anim li').css('visibility','visible');
+			var elem= this.slide_elems[ slide_num > 0 ? slide_num-1 : this.slide_elems.length + slide_num ];
+			var changed= false;
+			if (!this.cur_slide || this.cur_slide != slide_num) {
+				$(document.documentElement).css('overflow','hidden');
+				this.slide_elems.hide();
+				var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+				$(elem).show()
+					.css('border','none')
+					.height(h);
+				this.cur_slide= elem;
+				changed= true;
 			}
-			var notes= $(elem).find('pre.hidden').text();
-			$('#presenternotes pre').text(notes);
-			this.emit_extern_event({
-				slide_num: slave? null : $(elem).data('slide_num'),
-				step_num: slave? null : anim? this.cur_bullet_idx : null,
-				extern: this.presenter_ui? null : this.cur_extern? this.cur_extern : prev_extern? '-' : null,
-				elem_rect: this.presenter_ui? null : this.client_rect(figure.length? figure[0] : elem),
-				notes: notes
-			});
+			var steps= elem.find('.slide-step');
+			if (step_num < 0) step_num= steps.length + step_num;
+			if (step_num < 0) step_num= 1;
+			if (changed || !this.cur_step || this.cur_step != step_num) {
+				steps.each(function() {
+					var show_on= $(this).data('step');
+					var show= false;
+					if (show_on) {
+						$.each(show_on.split(/,/), function(tok) {
+							var from_until= tok.split(/-/);
+							if (step_num >= from_until[0] && (from_until.length==1 || step_num <= from_until[1]))
+								show= true;
+						})
+					}
+					if (show)
+						$(this).show();
+					else if (this.presenter_ui) {
+						$(this).css('opacity', .3);
+					else
+						$(this).hide();
+				});
+			}
+			var figure= $(elem).find('figure');
+			this.cur_figure= figure.length? figure[0] : null;
+			this.cur_extern= figure.length? figure.data('extern') : null;
+			this.cur_notes= $(elem).find('pre.hidden').text();
+			if (this.presenter_ui) {
+				$('#presenternotes pre').text(this.cur_notes);
+			}
 		}
+		return changed;
+	},
+	relay_slide_position: function() {
+		this.emit_extern_event({
+			slide_num: this.cur_slide,
+			step_num: this.cur_step,
+			extern: this.presenter_ui? null : this.cur_extern? this.cur_extern : '-',
+			elem_rect: this.presenter_ui? null : this.client_rect(this.figure? figure : this.slide_elems[this.slide_num-1]),
+			notes: this.cur_notes
+		});
 	}
 };
 $(document).ready(function() {
