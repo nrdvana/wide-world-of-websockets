@@ -65,7 +65,7 @@ window.slides= {
 		$(slide_dom_node).data('slide_num', slide_num);
 		// Look for .auto-step, and apply step numbers
 		var step_num= 1;
-		slide_dom_node.find('.auto-step').each(function(idx, e) {
+		$(slide_dom_node).find('.auto-step').each(function(idx, e) {
 			// If it has a step number, and only one, then start the count of its children from that
 			if (e.data('step') && e.data('step').match(/^[0-9]+$/))
 				step_num= e.data('step');
@@ -73,7 +73,7 @@ window.slides= {
 		});
 		// do a deep search to find any element with 'data-step' and give it the class of
 		// 'slide-step' for easier selecting later.
-		slide_dom_node.find('*').each(function(){
+		$(slide_dom_node).find('*').each(function(){
 			if ($(this).data('step'))
 				$(this).addClass('slide-step');
 		});
@@ -128,7 +128,7 @@ window.slides= {
 				&& self.relay_slide_position();
 		}
 		else {
-			self.show_slide(e.currentTarget.data('slide_num'), 0)
+			self.show_slide($(e.currentTarget).data('slide_num'), 0)
 				&& self.relay_slide_position();
 		}
 	},
@@ -218,7 +218,7 @@ window.slides= {
 				this.cur_slide= elem;
 				changed= true;
 			}
-			var steps= elem.find('.slide-step');
+			var steps= $(elem).find('.slide-step');
 			if (step_num < 0) step_num= steps.length + step_num;
 			if (step_num < 0) step_num= 1;
 			if (changed || !this.cur_step || this.cur_step != step_num) {
@@ -234,7 +234,7 @@ window.slides= {
 					}
 					if (show)
 						$(this).show();
-					else if (this.presenter_ui) {
+					else if (this.presenter_ui)
 						$(this).css('opacity', .3);
 					else
 						$(this).hide();
@@ -247,6 +247,15 @@ window.slides= {
 			if (this.presenter_ui) {
 				$('#presenternotes pre').text(this.cur_notes);
 			}
+			else {
+				this.emit_extern_event({
+					extern: this.presenter_ui? null : this.cur_extern? this.cur_extern : '-',
+					elem_rect:
+						this.cur_figure? this.client_rect(this.cur_figure)
+						: this.slide_num? this.client_rect(this.slide_elems[this.slide_num-1])
+						: null
+				});
+			}
 		}
 		return changed;
 	},
@@ -254,9 +263,6 @@ window.slides= {
 		this.emit_extern_event({
 			slide_num: this.cur_slide,
 			step_num: this.cur_step,
-			extern: this.presenter_ui? null : this.cur_extern? this.cur_extern : '-',
-			elem_rect: this.presenter_ui? null : this.client_rect(this.figure? figure : this.slide_elems[this.slide_num-1]),
-			notes: this.cur_notes
 		});
 	}
 };
