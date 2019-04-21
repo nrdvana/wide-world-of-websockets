@@ -51,9 +51,9 @@ window.slides= {
 				'	<pre></pre>'+
 				'</div>'
 			);
-			$('#nav_prev').on('click', function() { self.next_slide(-1); });
-			$('#nav_next').on('click', function() { self.next_slide(1); });
-			$('#nav_step').on('click', function() { self.next_step(1); });
+			$('#nav_prev').on('click', function() { self.change_slide(-1); });
+			$('#nav_next').on('click', function() { self.change_slide(1); });
+			$('#nav_step').on('click', function() { self.step(1); });
 		}
 		// Initialize slides in not-slideshow mode
 		this.show_slide(null);
@@ -86,8 +86,11 @@ window.slides= {
 				for (var i= 0; i < show_list.length; i++) {
 					show_list[i]= show_list[i].split(/-/);
 					show_list[i][0]= parseInt(show_list[i][0]);
-					if (show_list.length > 1)
+					// If a step  has both a start frame and an end frame, then it is "temporary".
+					if (show_list.length > 1) {
 						show_list[i][1]= parseInt(show_list[i][1]);
+						$(this).addClass('temporary-step');
+					}
 				}
 				$(this).data('step', show_list);
 			}
@@ -154,8 +157,8 @@ window.slides= {
 	},
 	change_slide: function(ofs) {
 		var next_idx= (this.cur_slide? this.cur_slide : 0) + ofs;
-		if (next_idx < 0) next_idx += this.slide_elems.length;
-		if (next_idx >= this.slide_elems.length) next_idx -= this.slide_elems.length;
+		if (next_idx < 0) next_idx += this.slide_elems.length + 1;
+		if (next_idx > this.slide_elems.length) next_idx -= this.slide_elems.length + 1;
 		this.show_slide(next_idx, ofs > 0? 1 : -1)
 			&& self.relay_slide_position();
 	},
@@ -205,7 +208,7 @@ window.slides= {
 				.css('height','auto')
 				.css('border','1px solid grey');
 			if (this.cur_slide) {
-				var slide= this.slide_elems[this.cur_slide];
+				var slide= this.slide_elems[this.cur_slide-1];
 				document.documentElement.scrollTop= $(slide).offset().top;
 			}
 			this.cur_slide= null;
@@ -236,12 +239,21 @@ window.slides= {
 			if (step_num < 0) step_num= 0;
 			if (changed || step_num != this.cur_step) {
 				$(elem).find('.slide-step').each(function() {
+					// If a step is not visible, behavior depends on whether we are the presenter
+					// and whether the element is temporary.  Non-temporary elements need to remain
+					// in the document flow so that the layout of the rest doesn't jump around.
+					// But temporary have to be removed from the layout so that they don't occupy
+					// space.  Meanwhile the presenter gets to see all hidden elements.
 					if (self._is_shown_on_step(this, step_num))
-						$(this).show();
-					else if (this.presenter_ui)
-						$(this).css('opacity', .3);
-					else
-						$(this).hide();
+						$(this).css('visibility','visible').css('position','relative');
+					else {
+						if (this.presenter_ui)
+							$(this).css('visibility','visible').css('opacity', .3);
+						else
+							$(this).css('visibility','hidden');
+						if ($(this).hasClass('temporary-step'))
+							$(this).css('position','absolute');
+					}
 				});
 				this.cur_step= step_num;
 				changed= true;
