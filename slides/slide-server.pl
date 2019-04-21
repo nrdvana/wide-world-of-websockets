@@ -12,6 +12,7 @@ get '/' => sub {
 websocket '/link.io' => sub {
 	my $c= shift;
 	$connections{$c}= $c;
+	$c->inactivity_timeout(3600);
 	$c->on(json => sub {
 		my @args= @_;
 		eval { handle_message(@args); 1 } || warn $@;

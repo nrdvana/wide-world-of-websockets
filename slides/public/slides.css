@@ -1,5 +1,30 @@
+/* baseline defaults for elements */
 html, body { margin: 0px; padding: 0px; background-color: #333; color: #DDD; }
 body { margin-bottom: -4em; font-size: 50px; }
+table { border-collapse: collapse; }
+ul, ol { list-style: outside; padding: 0px 0px 0px 1em; }
+
+/* settings for specific pieces of the slide system */
+.slide {
+	list-style: none;
+	position: relative;
+	text-align: center;
+	padding: .5em;
+	margin-bottom: 3em;
+	min-height: 10em;
+}
+#websocket-reconnect { position: fixed; top: 0; right: 0; z-index: 10; }
+#navbuttons { position: absolute; left:0; bottom: 100px; z-index: 9; }
+#navbuttons button {
+	display: block; width: 75px; height: 100px;
+	margin: 16px 0px;
+	background-color: #000000A0; font-size: 14pt; color: white;
+}
+#nav_step { width: 100px !important; height: 300px !important; }
+#presenternotes { position: absolute; z-index: 9; background-color: #000000A0; right: 0; bottom: 0; font-size: 14pt; }
+
+/* styles for this presentation */
+
 h1 { font-size: 150%; }
 h2 { font-size: 130%; margin: .5em; }
 h3 { font-size: 110%; margin: .5em; }
@@ -8,25 +33,6 @@ h1.lesson { display:inline-block; white-space: nowrap; text-align:center; font-s
 a { text-decoration: none; color: #DEF; }
 
 pre.hidden { display: none; }
-div.ws-conn { position: fixed; top: 0; right: 0; z-index: 10; }
-div.presenter-ui { display: none; position: absolute; z-index: 9; }
-#navbuttons { left:0; bottom: 100px; }
-#navbuttons button {
-	display: block; width: 75px; height: 100px;
-	margin: 16px 0px;
-	background-color: #000000A0; font-size: 14pt; color: white;
-}
-#nav_step { width: 100px !important; height: 300px !important; }
-#presenternotes { background-color: #000000A0; right: 0; bottom: 0; font-size: 14pt; }
-
-div.slide {
-	position: relative;
-	text-align: center;
-	padding: .5em;
-	margin-bottom: 3em;
-	min-height: 10em;
-	/*border: 1px solid silver;*/
-}
 div.slide > h1 { margin-top: .2em; }
 div.slide figure { margin: 0; padding: 0; /*border: 1px solid grey; */}
 figure.mid, figure.h, figure.img, figure.extern, figure.code {
