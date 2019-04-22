@@ -36,9 +36,10 @@ window.slides= {
 		$('body').prepend(
 			'<div id="websocket-reconnect">'+
 			'	<button>Reconnect</button>'+
+			'   <span class="websocket-address">'+
 			'</div>'
 		);
-		$('.ws-conn button').on('click', function(e) { self.reconnect() });
+		$('#websocket-reconnect button').on('click', function(e) { self.reconnect() });
 		// If opened in "control UI mode", inject buttons of UI
 		if (show_ui) {
 			$('body').prepend(
@@ -87,7 +88,7 @@ window.slides= {
 					show_list[i]= show_list[i].split(/-/);
 					show_list[i][0]= parseInt(show_list[i][0]);
 					// If a step  has both a start frame and an end frame, then it is "temporary".
-					if (show_list.length > 1) {
+					if (show_list[i].length > 1) {
 						show_list[i][1]= parseInt(show_list[i][1]);
 						$(this).addClass('temporary-step');
 					}
@@ -105,11 +106,26 @@ window.slides= {
 		// Connect WebSocket to local event server
 		this.ws= new WebSocket(this.ws_uri);
 		this.ws.onmessage= function(event) { self.handle_extern_event(JSON.parse(event.data)); };
-		this.ws.onopen= function(event) { $('#websocket-reconnect').hide(); };
-		this.ws.onclose= function(event) { $('#websocket-reconnect').show(); };
+		this.ws.onopen= function(event) {
+			$('#websocket-reconnect').hide();
+			// Set a manual keepalive so we can use a short inactive_timeout on server
+			self.ws_keepalive= window.setInterval(function(){ self.ws.send('{}'); }, 60000);
+		};
+		this.ws.onclose= function(event) {
+			$('#websocket-reconnect').show();
+			self.clearInterval(self.ws_keepalive);
+		};
+	},
+	_event_is_for_input: function(e) {
+		return (e.target.tagName == "INPUT"
+			|| e.target.tagName == "BUTTON"
+			|| e.target.tagName == "TEXTAREA"
+			) || (e['originalEvent'] && this._event_is_for_input(e.originalEvent));
 	},
 	handle_key: function(e) {
-		//console.log('handle_key', e);
+		// Ignore keys for input elements within the slides
+		if (this._event_is_for_input(e)) return true;
+		console.log('handle_key', e);
 		if (e.keyCode == 39 /* ArrowRight */) {
 			this.change_slide(1);
 			return false;
@@ -130,6 +146,9 @@ window.slides= {
 	},
 	handle_click: function(e) {
 		self= this;
+		// Ignore clicks for input elements within the slides
+		if (this._event_is_for_input(e)) return true;
+
 		var slide_num= $(e.currentTarget).data('slide_num');
 		if (slide_num) {
 			if (slide_num != self.cur_slide) {
@@ -137,9 +156,9 @@ window.slides= {
 					&& self.relay_slide_position();
 			}
 			else {
-				self.show_slide(null, null)
-					&& self.relay_slide_position();
+				self.show_slide(null, null);
 			}
+			return false;
 		}
 	},
 	handle_extern_event: function(e) {
@@ -147,8 +166,8 @@ window.slides= {
 		// If extern visual has closed, advance to the next slide or step
 		if (e['extern_ended'] && e.extern_ended == this.cur_extern)
 			this.step_anim(1);
-		// If given a slide position, show it
-		if ('slide_num' in e)
+		// If given a slide position, and we are in slide-view mode, go to this one
+		if ('slide_num' in e && this.cur_slide)
 			this.show_slide(e['slide_num'] || 0, e['step_num'] || 0);
 	},
 	emit_extern_event: function(obj) {
@@ -213,11 +232,8 @@ window.slides= {
 			if (this.cur_slide) {
 				var slide= this.slide_elems[this.cur_slide-1];
 				document.documentElement.scrollTop= $(slide).offset().top;
+				this.cur_slide= null;
 			}
-			this.cur_slide= null;
-			this.cur_step= null;
-			this.cur_extern= null;
-			this.emit_extern_event({ slide_num: null, cur_extern: this.presenter_ui? null : '-' });
 		}
 		else {
 			var elem= this.slide_elems[ slide_num > 0 ? slide_num-1 : this.slide_elems.length + slide_num ];
@@ -292,14 +308,15 @@ window.slides= {
 		return shown;
 	},
 	relay_slide_position: function() {
-		this.emit_extern_event({
-			slide_num: this.cur_slide,
-			step_num: this.cur_step,
-		});
+		if (this.cur_slide)
+			this.emit_extern_event({
+				slide_num: this.cur_slide,
+				step_num: this.cur_step,
+			});
 	}
 };
 $(document).ready(function() {
-	var ws_uri= 'ws://' + window.location.host + '/link.io';
+	var ws_uri= 'ws://' + window.location.host + '/slidelink.io';
 	var show_ui= window.location.hash && window.location.hash.match(/ui/);
 	window.slides.init(ws_uri, show_ui);
 });

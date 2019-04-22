@@ -5,6 +5,11 @@ This talk covers background/motivation of WebSockets, background of event-driven
 description of lots of design options for working with websockets, and finally recommendation
 on best strategies.
 
+## Why Websockets
+
+  * Some problems are solved best with event-based design
+  * HTTP awkward for exchanging events
+
 ## What is a Websocket
 
   * Starts as an HTTP(S) request
@@ -12,10 +17,12 @@ on best strategies.
   * Messages are framed, not pure streams
   * Remains within SSL-encapsulated connection
 
-## Why Websockets
+## Support for WebSockets
 
-  * Some problems are solved best with event-based design
-  * HTTP awkward for exchanging events
+  * Final draft published end of 2011
+  * No support on IE before IE10
+  * Everyone else has support since 2012
+  * Most proxies have added support by now
 
 ### Example: Chat
 
@@ -51,13 +58,6 @@ on best strategies.
 
   * Want responsive UI via web
   * Show off slide software
-
-## Support for WebSockets
-
-  * Final draft published end of 2011
-  * No support on IE before IE10
-  * Everyone else has support since 2012
-  * Most proxies have added support by now
 
 ## Event Driven Programming
 
@@ -213,6 +213,8 @@ on best strategies.
   * If blocking app receives WebSocket handshake, can fork off a child
     as if it were a CGI request.
   * Must close descriptor to prevent normal response to request
+  * Child must talk WebSocket frames, and probably no way to hand off SSL
+    state for child to continue encrypted conversation.
 
 ## Recap of Strategies
 
@@ -224,7 +226,7 @@ on best strategies.
 
   * Use path-routing frontend, like Traefik, Nginx, or Apache
   * Use favorite web framework for http, and block as needed
-  * Use AnyEvent or Mojolicious for second websocket service
+  * Use Mojolicious or AnyEvent or IO::Async for second websocket service
   * Use Message broker as needed for linking events between processes
 
 ### Event-driven HTTP + WS controllers

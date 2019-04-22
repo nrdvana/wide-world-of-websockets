@@ -5,6 +5,7 @@
 	<link rel="stylesheet" type="text/css" href="slides.css" />
 	<script src="jquery-3.3.1.min.js"></script>
 	<script src="slides.js"></script>
+	<script src="chat.js"></script>
 	<link rel="stylesheet" type="text/css" href="highlight/tomorrow-night.css" />
 	<script src="highlight/highlight.pack.js"></script>
 	<script>hljs.initHighlightingOnLoad();</script>
@@ -23,6 +24,133 @@
 	<figure class='h'>
 	<h1 class='loud'>Test</h1>
 	</figure>
+
+<li><h1>Wide World of WebSockets</h1>
+	<div style="height:30pt"></div>
+	<h2>A survey of the current state of<br> WebSockets in Perl 5</h2>
+	<div style="height:30pt"></div>
+	<h3>Michael Conrad<br>
+	mike@nrdvana.net<br>
+	CPAN: NERDVANA<br>
+	</h3>
+	<h5>https://github.com/nrdvana/wide-world-of-websockets/</h5>
+
+<li><h2>Overview</h2>
+	<ul class='auto-step'>
+	<li>Purpose and Design of WebSockets
+	<li>Problems solved with WebSockets
+	<li>Event Driven Programming (in Perl 5)
+	<li>Available Implementations (in Perl 5)
+	<li>Conclusion and Recommendations
+	</ul>
+
+<li><h2>HTTP Request Lifecycle</h2>
+	<figure>
+	(image here)
+	</figure>
+	<pre class="notes">
+	Familiar to most
+	Client starts TCP
+	Client requests resource
+	Server responds
+	</pre>
+
+<li><h2>HTTP Long-poll</h2>
+	<figure>
+	(image here)
+	</figure>
+	<pre class="notes">
+	Client starts request
+	Server waits until it has something
+	User sees spinner on browser
+	What if server wants to send faster than client asks
+	</pre>
+
+<li><h2>WebSockets</h2>
+	<figure>
+	</figure>
+	<pre class="notes">
+    Starts as an HTTP(S) request
+	Server responds with accept/decline
+	Magic key isn't crypto, just cache busting
+	Earlier versions did messy stuff; ignoring
+    Changes protocol from command/response to peer-to-peer
+    Messages are framed, not pure streams
+    Remains within SSL-encapsulated connection
+	</pre>
+
+<li><h2>WebSockets</h2>
+	<ul class='auto-step'>
+	<li>Proposed in 2008
+	<li>Revised several times up to 2012
+	<li>Final version
+		<table class='data' data-step='3-3'>
+			<tr><th>Browser<th>Available Since</tr>
+			<tr><td>IE 10<td>Win 8, Win7 on 2013-02</tr>
+		    <tr><td>FireFox 11<td>2012-03</tr>
+			<tr><td>Chrome 16<td>2011-12</tr>
+			<tr><td>Safari 6<td>2012-07, OS X Mountain Lion</tr>
+			<tr><td>Opera 12.10<td>2012-06</tr> 
+			<tr><td>Android 4.4<td>2013-09</tr>
+		</table>
+	<li>https://github.com/gimite/web-socket-js
+	</ul>
+	<pre class="notes">
+	Reaching sweet spot
+	Most old phones gone
+	Most old Macs gone
+	Opera matters for Wii
+	Flash workaround if you care
+	</pre>
+
+<li><h2>Example: Chat</h2>
+	<figure class='chat-app'>
+	</figure>
+	<pre class="notes">
+	Minimal delay on chat messages
+	Most common example of websocket
+	</pre>
+
+<li><h2><span style="float:left">Example:</span> Stock Ticker / Notification</h2>
+
+	<pre class="notes">
+	Want to avoid lots of polling
+	Want to see event as soon as it happens.
+	</pre>
+
+<li><h2><span style="float:left">Example:</span> Server watching presence of Client</h2>
+
+	<pre class="notes">
+	Server gets to choose how often to poll for presence of client
+	Heavily loaded server will poll less.  If clients poll, server might go down.
+	</pre>
+
+<li><h2>Example: Telephony</h2>
+
+	<pre class="notes">
+	Server wants to know if it can deliver calls to client
+	Client is acting like a server for incoming calls
+	</pre>
+
+<li><h2>Example: Mining BitCoin on Browsers</h2>
+
+  (joke)
+
+<li><h2>Example: Waiting for job in queue, and job progress</h2>
+
+	<pre class="notes">
+	400 in queue, up to 400 websockets listening.
+	Each time back-end job starts, broadcast to web workers
+	399 "new position" notifications go out
+	1 connection gets progress updates until job complete
+	</pre>
+
+<li><h2>Example: iPad Apps</h2>
+
+	<pre class="notes">
+	Want responsive UI via web
+	Show off slide software
+	</pre>
 
 </ol>
 </body>
