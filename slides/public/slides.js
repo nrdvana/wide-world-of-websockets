@@ -30,7 +30,7 @@ window.slides= {
 		// give each of them a sequence number for quick reference
 		self.slide_elems.each(function(idx, e) { self._init_slide(this, idx+1) });
 		// register key and click handlers
-		$(document).on('keypress', function(e) { return self.handle_key(e.originalEvent); });
+		$(document).on('keydown', function(e) { return self.handle_key(e.originalEvent); });
 		self.slide_elems.on('click', function(e) { self.handle_click(e) });
 		// Inject "reconnect" button and register click handler
 		$('body').prepend(
@@ -110,17 +110,20 @@ window.slides= {
 	},
 	handle_key: function(e) {
 		//console.log('handle_key', e);
-		if (e.key == 'ArrowRight') {
-			self.show_slide(self.cur_slide+1, 1);
+		if (e.keyCode == 39 /* ArrowRight */) {
 			this.change_slide(1);
 			return false;
 		}
-		else if (e.key == 'ArrowLeft') {
+		else if (e.keyCode == 37 /* ArrowLeft */) {
 			this.change_slide(-1);
 			return false;
 		}
-		else if (e.key == 'ArrowDown' || e.code == 'Space') {
+		else if (e.keyCode == 40 /* ArrowDown */ || e.keyCode == 32 /* Space */) {
 			this.step(1);
+			return false;
+		}
+		else if (e.keyCode == 38 /* ArrowUp */) {
+			this.step(-1);
 			return false;
 		}
 		return true;
@@ -262,7 +265,7 @@ window.slides= {
 			this.cur_figure= figure.length? figure[0] : null;
 			var prev_extern= this.cur_extern;
 			this.cur_extern= figure.length? figure.data('extern') : null;
-			this.cur_notes= $(elem).find('pre.hidden').text();
+			this.cur_notes= $(elem).find('.notes').text();
 			if (this.presenter_ui) {
 				$('#presenternotes pre').text(this.cur_notes);
 			}

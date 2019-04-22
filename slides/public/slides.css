@@ -1,13 +1,13 @@
 /* settings for specific pieces of the slide system */
 #websocket-reconnect { position: fixed; top: 0; right: 0; z-index: 10; }
-#navbuttons { position: absolute; left:0; bottom: 100px; z-index: 9; }
+#navbuttons { position: fixed; left:0; bottom: 100px; z-index: 9; }
 #navbuttons button {
 	display: block; width: 75px; height: 100px;
 	margin: 16px 0px;
 	background-color: #000000A0; font-size: 14pt; color: white;
 }
 #nav_step { width: 100px !important; height: 300px !important; }
-#presenternotes { position: absolute; z-index: 9; background-color: #000000A0; right: 0; bottom: 0; font-size: 14pt; }
+#presenternotes { position: fixed; z-index: 9; background-color: #000000A0; right: 0; bottom: 0; font-size: 14pt; }
 ol.slides { margin: 0; padding: 0; list-style: none; }
 
 /* baseline defaults for a slide-like environment */
@@ -40,6 +40,7 @@ h3 { font-size: 110%; margin: .5em; }
 	display: block; white-space:nowrap;
 	text-align: center;
 }
+.slide .notes { display: none; }
 
 /* styles for this presentation */
 body {
