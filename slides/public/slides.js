@@ -115,15 +115,8 @@ window.slides= {
 		// Connect WebSocket to local event server
 		this.ws= new WebSocket(this.ws_uri+'?mode='+this.mode+'&key='+encodeURIComponent(key));
 		this.ws.onmessage= function(event) { self.handle_extern_event(JSON.parse(event.data)); };
-		this.ws.onopen= function(event) {
-			$('#websocket-reconnect').hide();
-			// Set a manual keepalive so we can use a short inactive_timeout on server
-			self.ws_keepalive= window.setInterval(function(){ self.ws.send('{}'); }, 60000);
-		};
-		this.ws.onclose= function(event) {
-			$('#websocket-reconnect').show();
-			self.clearInterval(self.ws_keepalive);
-		};
+		this.ws.onopen= function(event) { $('#websocket-reconnect').hide(); };
+		this.ws.onclose= function(event) { $('#websocket-reconnect').show(); };
 	},
 	// Return true if the input event is destined for a DOM node that takes input
 	_event_is_for_input: function(e) {

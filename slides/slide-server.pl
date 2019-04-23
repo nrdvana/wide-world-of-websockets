@@ -66,8 +66,12 @@ websocket '/slidelink.io' => sub {
 			$log->info("\n$msg->{notes}\n\n");
 		}
 	});
+	$c->inactivity_timeout(600);
+	#my $keepalive= Mojo::IOLoop->recurring(60 => sub { $viewers{$id}->send([1, 0, 0, 0, WS_PING, '']); });
+	#$c->stash(keepalive => $keepalive);
 	$c->on(finish => sub {
-		delete $viewers{shift()};
+		#Mojo::IOLoop->remove($keepalive);
+		delete $viewers{$id};
 	});
 };
 
@@ -83,7 +87,7 @@ websocket '/chat.io' => sub {
 	else {
 		$c->stash(username => $username);
 		$chatters{$username}= $c;
-		$c->inactivity_timeout(60);
+		$c->inactivity_timeout(300);
 		$c->on(message => sub {
 			my ($c, $msg)= @_;
 			my $text= $c->stash('username') . ': ' . $msg;
