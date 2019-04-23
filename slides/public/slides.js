@@ -18,12 +18,15 @@ window.slides= {
 	step_elems: [],
 	cur_slide: null,
 	cur_extern: null,
-	presenter_ui: false,
+	mode: 'obs',
 	
-	init: function(ws_uri, show_ui) {
+	init: function() {
 		var self= this;
-		this.ws_uri= ws_uri;
-		this.presenter_ui= show_ui;
+		this.ws_uri= (window.location.protocol == 'http:' ? 'ws://' : 'wss://')
+			+ window.location.host + '/slidelink.io';
+		this.mode= window.location.pathname.match(/^\/presenter/)? 'presenter'
+			: window.location.pathname.match(/^\/main/)? 'main'
+			: 'obs';
 		
 		// make a list of DOM nodes for all immediate children of <ol class="slides">
 		self.slide_elems= $('ol.slides > li');
@@ -36,12 +39,16 @@ window.slides= {
 		$('body').prepend(
 			'<div id="websocket-reconnect">'+
 			'	<button>Reconnect</button>'+
-			'   <span class="websocket-address">'+
+			'</div>'+
+			'<div id="slideshow-join">'+
+			'    Follow along at<br>'+
+			'    <span class="slideshow-address"></span>'+
 			'</div>'
 		);
-		$('#websocket-reconnect button').on('click', function(e) { self.reconnect() });
+		$('#websocket-reconnect button').on('click', function(e) { self.reconnect(e) });
+		$('#slideshow-join').hide();
 		// If opened in "control UI mode", inject buttons of UI
-		if (show_ui) {
+		if (this.mode == 'presenter') {
 			$('body').prepend(
 				'<div id="navbuttons">'+
 				'	<button id="nav_prev">Prev</button>'+
@@ -58,7 +65,6 @@ window.slides= {
 		}
 		// Initialize slides in not-slideshow mode
 		this.show_slide(null);
-		this.reconnect();
 	},
 	_init_slide: function(slide_dom_node, slide_num) {
 		$(slide_dom_node).addClass('slide').data('slide_num', slide_num);
@@ -103,8 +109,11 @@ window.slides= {
 	},
 	reconnect: function() {
 		var self= this;
+		var key= '';
+		if (this.mode != 'obs')
+			key= window.prompt('Key');
 		// Connect WebSocket to local event server
-		this.ws= new WebSocket(this.ws_uri);
+		this.ws= new WebSocket(this.ws_uri+'?mode='+this.mode+'&key='+encodeURIComponent(key));
 		this.ws.onmessage= function(event) { self.handle_extern_event(JSON.parse(event.data)); };
 		this.ws.onopen= function(event) {
 			$('#websocket-reconnect').hide();
@@ -116,6 +125,7 @@ window.slides= {
 			self.clearInterval(self.ws_keepalive);
 		};
 	},
+	// Return true if the input event is destined for a DOM node that takes input
 	_event_is_for_input: function(e) {
 		return (e.target.tagName == "INPUT"
 			|| e.target.tagName == "BUTTON"
@@ -169,6 +179,10 @@ window.slides= {
 		// If given a slide position, and we are in slide-view mode, go to this one
 		if ('slide_num' in e && this.cur_slide)
 			this.show_slide(e['slide_num'] || 0, e['step_num'] || 0);
+		if ('slide_host' in e) {
+			$('.slideshow-address').text('https://' + e.slide_host);
+			$('#slideshow-join').show();
+		}
 	},
 	emit_extern_event: function(obj) {
 		//console.log('send',obj);
@@ -266,7 +280,7 @@ window.slides= {
 					if (self._is_shown_on_step(this, step_num))
 						$(this).css('visibility','visible').css('position','relative');
 					else {
-						if (this.presenter_ui)
+						if (this.mode == 'presenter')
 							$(this).css('visibility','visible').css('opacity', .3);
 						else
 							$(this).css('visibility','hidden');
@@ -282,12 +296,12 @@ window.slides= {
 			var prev_extern= this.cur_extern;
 			this.cur_extern= figure.length? figure.data('extern') : null;
 			this.cur_notes= $(elem).find('.notes').text();
-			if (this.presenter_ui) {
+			if (this.mode == 'presenter') {
 				$('#presenternotes pre').text(this.cur_notes);
 			}
 			else if (changed && (prev_extern || this.cur_extern)) {
 				this.emit_extern_event({
-					extern: this.presenter_ui? null : this.cur_extern? this.cur_extern : '-',
+					extern: this.mode == 'presenter'? null : this.cur_extern? this.cur_extern : '-',
 					elem_rect:
 						this.cur_figure? this.client_rect(this.cur_figure)
 						: this.slide_num? this.client_rect(this.slide_elems[this.slide_num-1])
@@ -315,8 +329,3 @@ window.slides= {
 			});
 	}
 };
-$(document).ready(function() {
-	var ws_uri= 'ws://' + window.location.host + '/slidelink.io';
-	var show_ui= window.location.hash && window.location.hash.match(/ui/);
-	window.slides.init(ws_uri, show_ui);
-});

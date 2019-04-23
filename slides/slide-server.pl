@@ -1,30 +1,51 @@
 #! /usr/bin/env perl
 use Log::Any '$log';
 use Log::Any::Adapter 'Daemontools', -init => { env => 1 };
-use Mojolicious::Lite;
+use Mojolicious::Lite -signatures;
+use Mojo::WebSocket 'WS_PING';
 
-get '/' => sub {
-	shift->redirect_to('slides.html')
+our $presenter_key= $ENV{PRESENTER_KEY} or die "Missing env PRESENTER_KEY";
+
+get '/' => sub ($c) {
+	$c->reply->static('slides.html');
+};
+get '/main' => sub ($c) {
+	$c->reply->static('slides.html');
+};
+get '/presenter' => sub ($c) {
+	$c->reply->static('slides.html');
 };
 
 my $cur_extern= '';
 my %viewers;
 websocket '/slidelink.io' => sub {
 	my $c= shift;
-	$viewers{$c}= $c;
-	$c->inactivity_timeout(70);
-	if (($c->req->params->{presenter}||'0') eq $ENV{PRESENTER_KEY})) {
+	my $id= $c->req->request_id;
+	$viewers{$id}= $c;
+	
+	my $mode= $c->req->params->param('mode') || '';
+	my $key= $c->req->params->param('key') || '';
+	if ($mode eq 'presenter' && $key eq $presenter_key) {
 		$c->stash(presenter => 1, driver => 1, mode => 'presenter');
-	} elsif ($c->req->params->param('main') && $c->original_remote_address eq '127.0.0.1') {
+	} elsif ($mode eq 'main' && $key eq $presenter_key) {
 		$c->stash(driver => 1, mode => 'main');
+		my $ip= `ip addr show dev wlp2s0`;
+		if ($ip =~ /inet ([0-9.]+)/) {
+			$c->send({ json => { slide_host => $1 } });
+		} else {
+			$log->warn("Can't find public IP in $ip");
+		}
 	} else {
 		$c->stash(mode => 'obs');
 	}
+	
+	$log->infof("%s (%s) connected as %s", $id, $c->tx->remote_address, $c->stash('mode'));
+	
 	$c->on(json => sub {
 		my ($c, $msg)= @_;
 		$log->debugf("client %s %s msg=%s", $c->request_id, $c->original_remote_address, $msg) if $log->is_debug;
 		$log->info(
-			$c->req->request_id.' ('.$c->stash('mode').') : '
+			$id.' ('.$c->stash('mode').') : '
 			.($msg->{slide_num}//'-').'.'.($msg->{step_num}//'-')
 			.' extern='.($msg->{extern}//'-')
 		);

@@ -1,5 +1,7 @@
 /* settings for specific pieces of the slide system */
 #websocket-reconnect { position: fixed; top: 0; right: 0; z-index: 10; }
+#slideshow-join { position: fixed; top: 0; right: 0; z-index: 9; font-size: 16px; }
+.slideshow-address { font: 16px monospace; }
 #navbuttons { position: fixed; left:0; bottom: 100px; z-index: 9; }
 #navbuttons button {
 	display: block; width: 75px; height: 100px;
