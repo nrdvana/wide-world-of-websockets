@@ -116,7 +116,10 @@ window.slides= {
 		this.ws= new WebSocket(this.ws_uri+'?mode='+this.mode+'&key='+encodeURIComponent(key));
 		this.ws.onmessage= function(event) { self.handle_extern_event(JSON.parse(event.data)); };
 		this.ws.onopen= function(event) { $('#websocket-reconnect').hide(); };
-		this.ws.onclose= function(event) { $('#websocket-reconnect').show(); };
+		this.ws.onclose= function(event) {
+			$('#websocket-reconnect').show();
+			$('#slideshow-join').hide();
+		};
 	},
 	// Return true if the input event is destined for a DOM node that takes input
 	_event_is_for_input: function(e) {
