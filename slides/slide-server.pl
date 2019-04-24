@@ -5,6 +5,9 @@ use Mojolicious::Lite -signatures;
 use Mojo::WebSocket 'WS_PING';
 
 our $presenter_key= $ENV{PRESENTER_KEY} or die "Missing env PRESENTER_KEY";
+@ARGV= qw( daemon --listen=http://*:3080 ) unless @ARGV;
+my $ip= get_public_ip();
+say "sudo iptables -t nat -A PREROUTING -d $ip -p tcp -m tcp --dport 80 -j DNAT --to-destination $ip:3210";
 
 get '/' => sub ($c) {
 	$c->reply->static('slides.html');
@@ -29,11 +32,8 @@ websocket '/slidelink.io' => sub {
 		$c->stash(presenter => 1, driver => 1, mode => 'presenter');
 	} elsif ($mode eq 'main' && $key eq $presenter_key) {
 		$c->stash(driver => 1, mode => 'main');
-		my $ip= `ip addr show dev wlp2s0`;
-		if ($ip =~ /inet ([0-9.]+)/) {
-			$c->send({ json => { slide_host => $1 } });
-		} else {
-			$log->warn("Can't find public IP in $ip");
+		if (my $ip= get_public_ip()) {
+			$c->send({ json => { slide_host => "http://$ip" } });
 		}
 	} else {
 		$c->stash(mode => 'obs');
@@ -97,5 +97,12 @@ websocket '/chat.io' => sub {
 		$c->on(finish => sub { delete $chatters{$username}; });
 	}
 };
+
+sub get_public_ip {
+	my $ip= `ip addr show dev wlp2s0`;
+	$ip =~ /inet ([0-9.]+)/ and return $1;
+	$log->warn("Can't find public IP in $ip");
+	return undef;
+}
 
 app->start;

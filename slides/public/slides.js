@@ -176,7 +176,7 @@ window.slides= {
 		if ('slide_num' in e && this.cur_slide)
 			this.show_slide(e['slide_num'] || 0, e['step_num'] || 0);
 		if ('slide_host' in e) {
-			$('.slideshow-address').text('https://' + e.slide_host);
+			$('.slideshow-address').text(e.slide_host);
 			$('#slideshow-join').show();
 		}
 	},
