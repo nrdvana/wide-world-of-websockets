@@ -56,6 +56,7 @@
 	<figure>
 	(image here)
 	</figure>
+
 	<pre class="notes">
 	Familiar to most
 	Client starts TCP
@@ -67,6 +68,7 @@
 	<figure>
 	(image here)
 	</figure>
+
 	<pre class="notes">
 	Client starts request
 	Server waits until it has something
@@ -77,6 +79,7 @@
 <li><h2>WebSockets</h2>
 	<figure>
 	</figure>
+
 	<pre class="notes">
     Starts as an HTTP(S) request
 	Server responds with accept/decline
@@ -103,6 +106,7 @@
 		</table>
 	<li>https://github.com/gimite/web-socket-js
 	</ul>
+
 	<pre class="notes">
 	Reaching sweet spot
 	Most old phones gone
@@ -114,30 +118,35 @@
 <li><h2>Example: Chat</h2>
 	<figure class='chat-app'>
 	</figure>
+
 	<pre class="notes">
 	Minimal delay on chat messages
 	Most common example of websocket
 	</pre>
-
-<li><h2><span style="float:left">Example:</span> Stock Ticker / Notification</h2>
+<!--
+<li><h2>Example: Stock Ticker / Notification</h2>
 
 	<pre class="notes">
 	Want to avoid lots of polling
 	Want to see event as soon as it happens.
 	</pre>
-
-<li><h2><span style="float:left">Example:</span> Server watching presence of Client</h2>
+-->
+<li><h2>Example: Watch presence of Client</h2>
+	<figure class='client-monitor'>
+	</figure>
 
 	<pre class="notes">
 	Server gets to choose how often to poll for presence of client
 	Heavily loaded server will poll less.  If clients poll, server might go down.
 	</pre>
 
-<li><h2>Example: Telephony</h2>
+<li><h2>Example: Intelligent File Upload</h2>
+
+	https://webdeltasync.github.io/
 
 	<pre class="notes">
-	Server wants to know if it can deliver calls to client
-	Client is acting like a server for incoming calls
+	JavaScript can hash file locally
+	only transfer new parts of file
 	</pre>
 
 <li><h2>Example: Mining BitCoin on Browsers</h2>
@@ -156,9 +165,150 @@
 <li><h2>Example: iPad Apps</h2>
 
 	<pre class="notes">
-	Want responsive UI via web
-	Show off slide software
+	iPad closed system, no perl
+	can write web-apps
+	event-driven is best model for UI
 	</pre>
+
+<li><h1>Event Driven Programming</h1>
+
+  * POSIX event sources:
+    * File handle read/write/error
+    * Timers
+    * Signals
+  * Linux:
+    * Inotify (file)
+	* Netlink (file)
+	* POSIX message queues (signal)
+  * Windows
+    * Thread/Window Message Queue
+	* Some things *can't* cause events, and must block
+  * Listen to all events at once
+
+	<pre class="notes">
+	quick version, entire talk of its own
+	can't discuss using websockets without
+	this background
+	also helps to frame discussion
+	</pre>
+
+<li><h2>Event-driven: Popular Patterns</h2>
+	<table>
+	<tr><th>Blocking, Multi-Thread<th>Non-blocking, Event Loop
+	<tr><td>
+		<ul class="auto-step">
+		<li>Classic blocking design:<br>
+		    Kernel stops program while<br>
+			waiting for one event.
+		<li>Logical extension:<br>
+		    Kernel stops thread while<br>
+			waiting for one event.
+		<li>Run one thread for each event<br>
+			you are waiting on.
+		</ul>
+	<td>
+		<ul class="auto-step">
+		<li>Program makes a list of all<br>
+			events it is waiting for.
+		<li>Asks Kernel to wake it up when<br>
+			an event is ready.
+		</ul>
+	</table>
+
+	<pre class="notes">
+	Event-driven usually refers to nonblocking event loop,
+	but contrast with active polling like video game
+	or realtime controls
+	</pre>
+
+<li><h2>Event-Driven: Pros/Cons</h2>
+	<table data-step=1>
+	<tr><th><th>Multi-Thread<th>Event Loop
+	<tr><th data-step=2>Pros
+		<td data-step=2>
+			<ul>
+			<li>Every event "ready to run"
+			<li>Parallel processing
+			<li>Follows natural pattern<br>of function calls
+			</ul>
+		<td data-step=4>
+			<ul>
+			<li>No segfaults or deadlocks
+			<li>Scales to very large number<br>of <u>events</u>
+			</ul>
+	<tr><th data-step=3>Cons
+		<td data-step=3>
+			<ul>
+			<li>Multi-thread Problems:<br>segfaults, deadlocks
+			<li>Slow data structures
+			<li>Development effort
+			<li>One thread per event doesn't<br>scale well
+			</ul>
+		<td data-step=5>
+			<ul>
+			<li>No parallelism; every event<br>must process quickly
+			<li>Must divide subroutines into<br>per-event pieces
+			<li><b>Can't use blocking APIs</b>
+			</ul>
+	</table>
+
+	<pre class="notes">
+	as seen in Java
+	blocking APIs: DBIC DNS
+	
+	Perl6 attempts fixing multithread
+	Go attempts hybrid approach
+	</pre>
+
+<li>
+  * Example of select-based loop
+<li>
+  * Event Loop
+<li>
+## Event Loop Back-Ends
+
+  * LibEvent
+  * LibEV
+  * Gtk, Glib, etc
+  * Mojo::Reactor
+<li>
+## Event Loop wrappers
+
+### POE
+
+  * Large back-compat, stable API
+  * Lots of structure, helps organize references
+  * Awkward
+  * Less ecosystem activity
+
+### AnyEvent
+
+  * Clean minimalist API
+  * Lots of callbacks, beware memory leaks
+  * Popular ecosystem
+  * Some past drama with author
+
+### IO::Async
+
+  * More structured than AnyEvent
+  * Less awkward than POE
+
+### Mojo::IOLoop
+
+  * Also minimalist API
+  * Only two options - pure perl or LibEV
+  * Tailored toward web service, lacks general features
+  * Mentioning it mostly because I refer to it again later
+
+### Coro
+
+  * Different approach to event linkage
+  * Pretend that code is making blocking calls
+  * Avoids excessive callbacks
+  * Lots of "magic" behind the scenes
+
+### Others
+
 
 </ol>
 </body>

@@ -89,7 +89,7 @@ window.slides= {
 		$(slide_dom_node).find('.slide-step').each(function() {
 			var show_list= $(this).data('step');
 			if (!Array.isArray(show_list)) {
-				show_list= show_list.split(',');
+				show_list= (""+show_list).split(',');
 				for (var i= 0; i < show_list.length; i++) {
 					show_list[i]= show_list[i].split(/-/);
 					show_list[i][0]= parseInt(show_list[i][0]);
