@@ -206,8 +206,7 @@
 		<li>Run one thread for each event<br>
 			you are waiting on.
 		</ul>
-	<td>
-		<ul class="auto-step">
+	<td><ul class="auto-step">
 		<li>Program makes a list of all<br>
 			events it is waiting for.
 		<li>Asks Kernel to wake it up when<br>
@@ -260,55 +259,106 @@
 	Go attempts hybrid approach
 	</pre>
 
-<li>
-  * Example of select-based loop
-<li>
-  * Event Loop
-<li>
-## Event Loop Back-Ends
+<li><h2>Natural Function Calls</h2>
+	<figure>
+	(animated image where function calls are shown as sideways tree)
+	</figure>
+	
+	<pre class="notes">
+	In code acting as "functions", call with
+	arguments and return result
+	function finishes calc before return
+	</pre>
 
-  * LibEvent
-  * LibEV
-  * Gtk, Glib, etc
-  * Mojo::Reactor
-<li>
-## Event Loop wrappers
+<li><h2>Event Loop Function Fragments</h2>
+	<figure>
+	(animated image where functions link events to next fragment)
+	</figure>
+	
+	<pre class="notes">
+	In eventloop pattern, functions must return to loop
+	each fragment must set up event
+	to trigger next fragment
+	</pre>
 
-### POE
+<li><h2>Event Loop Basics</h2>
+	<h3>Event Types (unix):</h3>
+	<ul class="auto-step">
+	<li>I/O (read, close, write, accept, inotify)
+	<li>Signals (exit, reset, collect child process)
+	<li>Time
+	</ul>
 
-  * Large back-compat, stable API
-  * Lots of structure, helps organize references
-  * Awkward
-  * Less ecosystem activity
+	<pre class="notes">
+	Unix has these needs
+	Windows has additional things like MQ
+	   Reaping threads, overlapped IO
+	</pre>
 
-### AnyEvent
+<li><h2>Event Loop Basics</h2>
+	<h3>Implementation</h3>
+	<figure>
+	(scrolling animation of select() and surrounding code)
+	</figure>
 
-  * Clean minimalist API
-  * Lots of callbacks, beware memory leaks
-  * Popular ecosystem
-  * Some past drama with author
+	<pre class="notes">
+	clearly bit of a mess
+	especially details like signals
+	want to wrap that in a library
+	</pre>
 
-### IO::Async
+<li><h2>Event Loop Implementations</h2>
+	<ul>
+	<li>LibEV
+	<li>Gtk
+	<li>Glib
+	<li>...etc
+	</ul>
 
-  * More structured than AnyEvent
-  * Less awkward than POE
+	<pre class="notes">
+	Lots to choose from
+	LibEV particularly good
+	But There Can Be Only One
+	Need to adapt modules to any event loop
+	</pre>
 
-### Mojo::IOLoop
+<li><h2>Event Loop Wrappers</h2>
+	<h3>POE</h3>
+	<ul>
+	<li>Large back-compat, stable API
+	<li>Lots of structure, helps organize references
+	<li>Awkward / learning curve
+	<li>Less ecosystem activity
+	</ul>
 
-  * Also minimalist API
-  * Only two options - pure perl or LibEV
-  * Tailored toward web service, lacks general features
-  * Mentioning it mostly because I refer to it again later
+<li><figure>
+	(POE code)
+	</figure>
 
-### Coro
+<li><h2>Event Loop Wrappers</h2>
+	<h3>AnyEvent</h3>
+	<ul>
+	<li>Clean minimalist API
+	<li>Lots of callbacks, beware memory leaks
+	<li>Popular ecosystem
+	<li>Associated with drama
+	</ul>
 
-  * Different approach to event linkage
-  * Pretend that code is making blocking calls
-  * Avoids excessive callbacks
-  * Lots of "magic" behind the scenes
+<li><figure>
+	(AnyEvent code)
+	</figure>
 
-### Others
+<li><h2>Event Loop Wrappers</h2>
+	<h3>IO::Async</h3>
+	<ul>
+	<li>More structured than AnyEvent
+	<li>Less awkward than POE
+	<li>Home for drama refugees
+	</ul>
 
+<li><figure>
+	(IO::Async code)
+	</figure>
 
 </ol>
 </body>
