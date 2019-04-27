@@ -238,6 +238,7 @@ window.slides= {
 			// Show all slides
 			this.slide_elems.show()
 				.css('height','auto')
+				.css('transform','none')
 				.css('border','1px solid grey');
 			if (this.cur_slide) {
 				var slide= this.slide_elems[this.cur_slide-1];
@@ -251,13 +252,22 @@ window.slides= {
 			if (!this.cur_slide || this.cur_slide != slide_num) {
 				// Make sure page is in single-slide mode
 				$(document.documentElement).css('overflow','hidden');
+				$(elem).show(); // show element, to be able to get its dimensions
+				var el_w= $(elem).innerWidth();
+				var el_h= $(elem).innerHeight();
 				// Hide all slides
 				this.slide_elems.hide();
-				// Then show this one slide, sized to the height of the viewport
-				var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+				// Then show this one slide, scaled to the smaller dimension of the viewport
+				var viewport_w= $(window).width();
+				var viewport_h= $(window).height();
+				var xscale= viewport_w / el_w;
+				var yscale= viewport_h / el_h;
+				var scale= Math.min(xscale, yscale);
+				var transform= 'translate(0,'+(-el_h/2+viewport_h/2)+'px) scale('+scale+','+scale+')';
+				console.log('transform',transform);
 				$(elem).show()
 					.css('border','none')
-					.height(h);
+					.css('transform',transform);
 				// mark this one as the current slide
 				this.cur_slide= slide_num;
 				this.cur_step= null;
