@@ -43,7 +43,7 @@ websocket '/slidelink.io' => sub {
 	
 	$c->on(json => sub {
 		my ($c, $msg)= @_;
-		$log->debugf("client %s %s msg=%s", $c->request_id, $c->original_remote_address, $msg) if $log->is_debug;
+		$log->debugf("client %s %s msg=%s", $id, $c->tx->original_remote_address, $msg) if $log->is_debug;
 		$log->info(
 			$id.' ('.$c->stash('mode').') : '
 			.($msg->{slide_num}//'-').'.'.($msg->{step_num}//'-')

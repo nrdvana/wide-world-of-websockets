@@ -23,11 +23,14 @@ h3 { font-size: 110%; margin: .5em; }
 .slide {
 	position: relative;
 	text-align: center;
-	padding: .5em;
+	padding: 10px;
 	margin: auto;
-	width: 1024px;
-	height: 768px;
-	min-height: 10em;
+	width: 1004px; /* -10px -10px padding */
+	min-height: 556px; /* -10px -10px padding */
+	font-size: 40px;
+}
+.slide.dense {
+	font-size: 30px;
 }
 .slide > h1 { margin-top: .2em; }
 .slide > ul, .slide > ol { display: inline-block; max-width: 80%; }
@@ -48,18 +51,20 @@ h3 { font-size: 110%; margin: .5em; }
 
 /* styles for this presentation */
 body {
-	font-size: 50px;
 	background-color: #333;
 	color: #DDD;
 }
+th { vertical-align: baseline; text-align: left; }
+td { vertical-align: baseline; text-align: left; }
 table.data {
-	font-size: 30px;
+	font-size: 90%;
 	font-family: sans-serif;
 	border-collapse: separate;
 	border-spacing: 8px;
 }
 table.data th { padding: 4px 8px; background-color: #222; }
 table.data td { padding: 4px 8px; background-color: #303030; }
+li { margin-bottom: .2em; }
 
 .chat-app { font-size: 14px; }
 .chatlog {
