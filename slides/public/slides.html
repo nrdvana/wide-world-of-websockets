@@ -220,40 +220,63 @@
 	or realtime controls
 	</pre>
 
-<li class="dense"><h2>Event-Driven: Pros/Cons</h2>
-	<table class="data" data-step=1>
+<li class="dense"><h2>Event-Driven Patterns: Pros/Cons</h2>
+	<table class="data" data-step=0>
 	<tr><td style="visibility:hidden"><th>Multi-Thread<th>Event Loop
-	<tr><th data-step=2>Pros
+	<tr><th data-step=1>Pros
+		<td data-step=1>
+			<ul>
+			<li>Parallel processing
+			<li>Immediate dispatch
+			<li>Obvious to write
+			</ul>
+		<td data-step=3>
+			<ul>
+			<li>Easy shared data
+			<li>Scales to many <u>events</u>
+			<li>Easy debugging (maybe)
+			</ul>
+	<tr><th data-step=2>Cons
 		<td data-step=2>
 			<ul>
-			<li>Every event "ready to run"
-			<li>Parallel processing
-			<li>Follows natural pattern<br>of function calls
+			<li>Non-obvious bugs
+			<li>Slow shared data
+			<li>Awkward cancellation
+			<li>Development effort
+			<li>Scalability
 			</ul>
 		<td data-step=4>
 			<ul>
-			<li>No segfaults or deadlocks
-			<li>Scales to very large number<br>of <u>events</u>
-			</ul>
-	<tr><th data-step=3>Cons
-		<td data-step=3>
-			<ul>
-			<li>Multi-thread Problems:<br>segfaults, deadlocks
-			<li>Slow data structures
-			<li>Development effort
-			<li>One thread per event doesn't<br>scale well
-			</ul>
-		<td data-step=5>
-			<ul>
-			<li>No parallelism; every event<br>must process quickly
-			<li>Must divide subroutines into<br>per-event pieces
+			<li>No parallelism *
+			<li>Awkward code flow
 			<li><b>Can't use blocking APIs</b>
 			</ul>
 	</table>
 
 	<pre class="notes">
-	as seen in Java
-	blocking APIs: DBIC DNS
+	Multi-thread Pro
+	   things can run in parallel
+	   Every event "ready to run"
+	   natural pattern of fn call
+	Multi-thread Con
+	   segfaults, deadlocks, races
+	   shared data structures need locks
+	     as seen in Java
+	   killing thread is awkward
+	   obvious pattern has many non-obvious pitfalls
+	   One thread per event doesn't scale
+	Eventloop Pro
+	   Single thread, so simple data structures
+	   Per-event cost is just items in a list,
+		so can scale up to extreme number of events.
+	   Single-thread easier to debug than multithread,
+	    but "easy" depends on abstraction
+	Eventloop Con
+	   every event must process quickly
+		(can fork for expensive processing)
+	   Must divide subroutines into
+	     per-event pieces
+	   blocking APIs: DBIC DNS
 	
 	Perl6 attempts fixing multithread
 	Go attempts hybrid approach
