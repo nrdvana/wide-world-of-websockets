@@ -3,14 +3,16 @@
 	<title>The Wide World of WebSockets</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<link rel="stylesheet" type="text/css" href="slides.css" />
+	<script src="highlight/highlight.pack.js"></script>
 	<script src="jquery-3.3.1.min.js"></script>
 	<script src="slides.js"></script>
 	<script src="chat.js"></script>
 	<link rel="stylesheet" type="text/css" href="highlight/tomorrow-night.css" />
-	<script src="highlight/highlight.pack.js"></script>
 	<script>
-	slides.initOnLoad(); // transform document for slideshow, and open websocket
-	hljs.initHighlightingOnLoad(); // syntax hilighting for <pre><code> blocks
+	$(document).ready(function() {
+		slides.init(); // transform document for slideshow, and open websocket
+		hljs.initHighlightingOnLoad(); // syntax hilighting for <pre><code> blocks
+	});
 	</script>
 </head>
 <body>
@@ -22,11 +24,6 @@
 	<li>two
 	<li>three
 	</ul>
-
-<li>
-	<figure class='h'>
-	<h1 class='loud'>Test</h1>
-	</figure>
 
 <li><h1>Wide World of WebSockets</h1>
 	<div style="height:30pt"></div>
@@ -194,7 +191,8 @@
 			<tr><td>Opera 12.10<td>2012-06</tr> 
 			<tr><td>Android 4.4<td>2013-09</tr>
 		</table>
-	<li>https://github.com/gimite/web-socket-js
+	<li>Back-compat (flash) using<br>
+		https://github.com/gimite/web-socket-js
 	</ul>
 
 	<pre class="notes">
@@ -360,30 +358,30 @@
 	<pre data-step='1-1'><code style="font-size:50%; margin-bottom:-10em;">
 	our %tasks= (
 		{
-			code => sub {...},
-			read_fh => \$handle,
-			write_fh => \$handle,
-			wake_time => $timestamp,
+			code =&gt; sub {...},
+			read_fh =&gt; \$handle,
+			write_fh =&gt; \$handle,
+			wake_time =&gt; $timestamp,
 		}
 	);
 	</code></pre>
 	<pre data-step='2-2'><code style="font-size:50%; margin-bottom:-10em;">
 	while (!$terminate) {
-		my $need_read= make_fh_bitvector( map $_->{read_fh}, values %tasks );
-		my $need_write= make_fh_bitvector( map $_->{write_fh}, values %tasks );
+		my $need_read= make_fh_bitvector( map $_-&gt;{read_fh}, values %tasks );
+		my $need_write= make_fh_bitvector( map $_-&gt;{write_fh}, values %tasks );
 		my $check_err= combine_bitvectors( $need_read, $need_write );
-		my $timeout= min( map $_->{wake_time}, values %tasks );
+		my $timeout= min( map $_-&gt;{wake_time}, values %tasks );
 	   
 		$ret= select( $need_read, $need_write, $check_err, $timeout );
 	</code></pre>
 	<pre data-step='3-3'><code style="font-size:50%; margin-bottom:-10em;">
 		for ( values %tasks ) {
-			if ( bitvector_contains_fh( $need_read, $_->{read_fh} ) {
-				$_->{code}->() // run the callback
+			if ( bitvector_contains_fh( $need_read, $_-&gt;{read_fh} ) ) {
+				$_-&gt;{code}-&gt;() // run the callback
 			}
 			...
-			if ( $_->{wake_time} &lt; time) {
-				$_->{code}->()
+			if ( $_-&gt;{wake_time} &lt; time) {
+				$_-&gt;{code}-&gt;()
 			}
 		}
 	</code></pre>
@@ -472,29 +470,29 @@ IO::Async is a bit of a hybrid
 <li><h2>WebSockets In Perl</h2>
 
 <li><h2>Stand-alone</h2>
-<pre><code data-step='1-1'>
+<pre><code data-step='1-1' style="font-size:50%; margin-bottom:-10em;">
 use AnyEvent::WebSocket::Server;
 
-my $server= AnyEvent::WebSocket::Server->new(
-  handshake => sub {
+my $server= AnyEvent::WebSocket::Server-&gt;new(
+  handshake =&gt; sub {
     my ($req, $res)= @_;
-    ... // decide whether to accept
-    return $res, ...; // can append calculated values
+    ... # decide whether to accept
+    return $res, ...; # can append calculated values
   },
 );
 </code></pre>
-<pre><code data-step='2-2'>
+<pre><code data-step='2-2' style="font-size:50%; margin-bottom:-10em;">
 AnyEvent::Socket::tcp_server undef, 5000, sub {
   my ($fh)= @_;
-  $server->establish($fh)->cb(sub {
-    my ($conn, ...)= eval { shift->recv };
+  $server-&gt;establish($fh)-&gt;cb(sub {
+    my ($conn, ...)= eval { shift-&gt;recv };
     if ($@) {
       warn "Rejected connection: $@\n";
       close($fh);
       return;
     }
-    $conn->on(each_message => sub { ... });
-    $conn->on(finish => sub { ... });
+    $conn-&gt;on(each_message =&gt; sub { ... });
+    $conn-&gt;on(finish =&gt; sub { ... });
   });
 };
 </code></pre>
@@ -512,23 +510,23 @@ AnyEvent::Socket::tcp_server undef, 5000, sub {
 
 <li><h2>Plack</h2>
 	<pre><code class="perl">
-	Plack::App::WebSocket->new(
-		on_error => sub {
+	Plack::App::WebSocket-&gt;new(
+		on_error =&gt; sub {
 			my $env = shift;
 			return [500,
-					["Content-Type" => "text/plain"],
-					["Error: " . $env->{"plack.app.websocket.error"}]];
+					["Content-Type" =&gt; "text/plain"],
+					["Error: " . $env-&gt;{"plack.app.websocket.error"}]];
 		},
-		on_establish => sub {
+		on_establish =&gt; sub {
 			my $conn = shift;   ## Plack::App::WebSocket::Connection object
 			my $env = shift;    ## PSGI env
 			my $hs_res = shift; ## extra results from the handshake callback
-			$conn->on(
-				message => sub {
+			$conn-&gt;on(
+				message =&gt; sub {
 					my ($conn, $msg) = @_;
-					$conn->send($msg);
+					$conn-&gt;send($msg);
 				},
-				finish => sub {
+				finish =&gt; sub {
 					undef $conn;
 					warn "Bye!!\n";
 				},
@@ -539,8 +537,9 @@ AnyEvent::Socket::tcp_server undef, 5000, sub {
 
 <li><h2>Web::Simple</h2>
 
-	Plack based... just return the same thing
-	when websocket URI is requested.
+	Plack based...<br>
+	Just return the same thing when<br>
+	websocket URI is requested.
 
 <li><h2>Dancer</h2>
 	<ul class='auto-step'>
@@ -578,7 +577,7 @@ AnyEvent::Socket::tcp_server undef, 5000, sub {
 	</ul>
 
 <li><h2>Hybrid</h2>
-	<span data-step='0-0'>Why Make Monoliths?</span>
+	<span data-step='0-0'>Why Make Monoliths?</span><br>
 	<ul class='auto-step'>
 	<li>Use Traefik / Nginx / Apache to divide application according to need.
 	<li>Handle normal web requests in Catalyst/Dancer
@@ -657,7 +656,7 @@ AnyEvent::Socket::tcp_server undef, 5000, sub {
 	[retry]
 	</code></pre>
 
-<li><h2>Mount service using Docker labels
+<li><h2>Mount a service<br> using Docker labels</h2>
 	<pre><code class="bash">
 		--label "traefik.enable=true"
 		--label "traefik.docker.network=traefik-net"
@@ -679,12 +678,14 @@ AnyEvent::Socket::tcp_server undef, 5000, sub {
 	<tr><td>Slides&nbsp;</td><td>github.com/nrdvana/wide-world-of-websockets</td></tr>
 	<tr><td>Modules&nbsp;</td><td>
 		<table>
-		<tr><th>Module</th>                   <th>Based On...</th></tr>
 		<tr><td>Protocol::WebSocket
-		<tr><td>AnyEvent::WebSocket::Server   <td>Protocol::WebSocket
-		<tr><td>Plack::App::WebSocket         <td>AnyEvent::WebSocket::Server
+		<tr><td>AnyEvent::WebSocket::Server<br>
+			<div style="padding-left:2em; font-size:60%">based on Protocol::WebSocket</div>
+		<tr><td>Plack::App::WebSocket
+			<div style="padding-left:2em; font-size:60%">based on AnyEvent::WebSocket::Server</div>
+		<tr><td>Amon2::Plugin::Web::WebSocket
+			<div style="padding-left:2em; font-size:60%">based on Protocol::WebSocket</div>
 		<tr><td>Mojo::Transaction::WebSocket
-		<tr><td>Amon2::Plugin::Web::WebSocket <td>Protocol::WebSocket
 		</table>
 	</td></tr>
 	</table>

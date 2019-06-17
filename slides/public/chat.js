@@ -11,11 +11,12 @@ window.chat= {
 		$('.chat-connect button').on('click', function(event) { self.connect(); return false; });
 		$('.chatline').hide();
 	},
-	connect: function() {
+	connect: function(username) {
 		var self= this;
 		if (!this.ws) {
 			// Connect WebSocket and initialize events
-			var username= $('.chat-connect input').val();
+			if (!username)
+				username= $('.chat-connect input').val();
 			if (!username) {
 				window.alert("Please pick a user name");
 				return;

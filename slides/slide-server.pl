@@ -25,6 +25,7 @@ websocket '/slidelink.io' => sub {
 	my $c= shift;
 	my $id= $c->req->request_id;
 	$viewers{$id}= $c;
+	update_stats(viewer_count => scalar keys %viewers);
 	
 	my $mode= $c->req->params->param('mode') || '';
 	my $key= $c->req->params->param('key') || '';
@@ -66,12 +67,13 @@ websocket '/slidelink.io' => sub {
 			$log->info("\n$msg->{notes}\n\n");
 		}
 	});
-	$c->inactivity_timeout(600);
+	$c->inactivity_timeout(3600);
 	#my $keepalive= Mojo::IOLoop->recurring(60 => sub { $viewers{$id}->send([1, 0, 0, 0, WS_PING, '']); });
 	#$c->stash(keepalive => $keepalive);
 	$c->on(finish => sub {
 		#Mojo::IOLoop->remove($keepalive);
 		delete $viewers{$id};
+		update_stats(viewer_count => scalar keys %viewers);
 	});
 };
 
@@ -97,6 +99,18 @@ websocket '/chat.io' => sub {
 		$c->on(finish => sub { delete $chatters{$username}; });
 	}
 };
+
+my %stats;
+my %stats_monitors;
+websocket '/stats.io' => sub {
+	my $c= shift;
+	$stats_monitors{$c}= $c;
+	$c->on(finish => sub { delete $stats_monitors{$c} });
+};
+sub update_stats {
+	%stats= ( %stats, @_ );
+	$_->send({ json => \%stats }) for values %stats_monitors;
+}
 
 sub get_public_ip {
 	my $ip= `ip addr show dev wlp2s0`;

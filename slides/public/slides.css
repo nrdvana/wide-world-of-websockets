@@ -1,7 +1,7 @@
 /* settings for specific pieces of the slide system */
 #websocket-reconnect { position: fixed; top: 0; right: 0; z-index: 10; }
-#slideshow-join { position: fixed; top: 0; right: 0; z-index: 9; font-size: 16px; }
-.slideshow-address { font: 16px monospace; }
+#slideshow-join { position: fixed; top: 0; right: 4px; z-index: 9; font-size: 22px; }
+.slideshow-address { font: 28px monospace; }
 #navbuttons { position: fixed; left:0; bottom: 100px; z-index: 9; }
 #navbuttons button {
 	display: block; width: 75px; height: 100px;
@@ -52,7 +52,7 @@ h3 { font-size: 110%; margin: .5em; }
 
 /* styles for this presentation */
 body { background-color: #333; color: #DDD; }
-body.full-contrast { background-color: #000; color: #FFF; }
+body.high-contrast { background-color: #000; color: #FFF; }
 th { vertical-align: baseline; text-align: left; }
 td { vertical-align: baseline; text-align: left; }
 table.data {
@@ -62,8 +62,8 @@ table.data {
 	border-spacing: 8px;
 }
 table.data th { padding: 4px 8px; background-color: #222; }
-.full-contrast table.data th { background-color: #151515; }
-.full-contrast table.data td { background-color: #303030; }
+.high-contrast table.data th { background-color: #151515; }
+.high-contrast table.data td { background-color: #303030; }
 li { margin-bottom: .2em; }
 
 .chat-app { font-size: 14px; }

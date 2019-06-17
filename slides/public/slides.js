@@ -101,8 +101,18 @@ window.slides= {
 			$(this).text(text);
 		});
 		// 'presenter' and 'main' need to enter a password, but observers should just auto-connect
-		if (this.mode == 'obs')
+		if (this.mode == 'obs') {
 			this.reconnect();
+			self.show_slide(2, 0);
+		}
+		if (this.mode == 'presenter') {
+			$('.chat-connect input').val('Mike');
+			window.chat.connect("nerdvana");
+		}
+		if (this.mode == 'main') {
+			$('.chat-connect input').val('Main');
+			window.chat.connect("Main");
+		}
 	},
 	_init_slide: function(slide_dom_node, slide_num) {
 		$(slide_dom_node).addClass('slide').data('slide_num', slide_num);
@@ -322,9 +332,9 @@ window.slides= {
 					// But temporary have to be removed from the layout so that they don't occupy
 					// space.  Meanwhile the presenter gets to see all hidden elements.
 					if (self._is_shown_on_step(this, step_num))
-						$(this).css('visibility','visible').css('position','relative');
+						$(this).css('visibility','visible').css('position','relative').css('opacity',1);
 					else {
-						if (this.mode == 'presenter')
+						if (self.mode == 'presenter')
 							$(this).css('visibility','visible').css('opacity', .3);
 						else
 							$(this).css('visibility','hidden');
