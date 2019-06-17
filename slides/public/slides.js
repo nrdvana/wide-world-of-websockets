@@ -14,19 +14,36 @@
  * element is hidden or when the server says it ends.
  */
 window.slides= {
+	ws_uri: null, // URI for making websocket connection
+	mode: null,   // 'presenter', 'main', or 'obs'
+
 	slide_elems: [],
 	step_elems: [],
 	cur_slide: null,
 	cur_extern: null,
-	mode: 'obs',
 	
+	initOnLoad: function() {
+		var self= this;
+		$(document).ready(function() { self.init(); });
+	},
 	init: function() {
 		var self= this;
-		this.ws_uri= (window.location.protocol == 'http:' ? 'ws://' : 'wss://')
-			+ window.location.host + '/slidelink.io';
-		this.mode= window.location.pathname.match(/^\/presenter/)? 'presenter'
-			: window.location.pathname.match(/^\/main/)? 'main'
-			: 'obs';
+		if (!this.ws_uri) {
+			// Default websocket location is wss://$host/slidelink.io, but make allowance for
+			// running on non-https since it is probably localhost
+			this.ws_uri= (window.location.protocol == 'http:' ? 'ws://' : 'wss://')
+				+ window.location.host + '/slidelink.io';
+		}
+		if (!this.mode) {
+			// 'presenter' mode drives the slide show, and shows notes
+			// 'main' mode shows slides in their official published form while also allowing control
+			// 'obs' mode is a read-only observer mode intended for the audience
+			this.mode= window.location.pathname.match(/^\/presenter/)? 'presenter'
+				: window.location.pathname.match(/^\/main/)? 'main'
+				: 'obs';
+		}
+		if (this.mode == 'main')
+			$('body').addClass('high-contrast');
 		
 		// make a list of DOM nodes for all immediate children of <ol class="slides">
 		self.slide_elems= $('ol.slides > li');
@@ -65,6 +82,27 @@ window.slides= {
 		}
 		// Initialize slides in not-slideshow mode
 		this.show_slide(null);
+		// For each <CODE> tag, remove leading whitespace, and convert tabs to spaces
+		$('code').each(function() {
+			var text= $(this).text();
+			text= text.replace(/\t/g, '   '); // tabs to spaces
+			text= text.replace(/^\s*\n/g, ''); // remove leading blank line
+			text= text.replace(/\n\s*$/g, ''); // remove blank trailing line
+			// find the shortest match of whitespace at the start of any line
+			var lead_ws_re= new RegExp('^( *)','mg');
+			var indent= null;
+			while ((matches= lead_ws_re.exec(text)) !== null)
+				if (indent === null || matches[1].length < indent) {
+					indent= matches[1].length;
+					if (indent == 0) break;
+				}
+			if (indent > 0)
+				text= text.replace(new RegExp('^'+(' '.repeat(indent)), 'mg'), '');
+			$(this).text(text);
+		});
+		// 'presenter' and 'main' need to enter a password, but observers should just auto-connect
+		if (this.mode == 'obs')
+			this.reconnect();
 	},
 	_init_slide: function(slide_dom_node, slide_num) {
 		$(slide_dom_node).addClass('slide').data('slide_num', slide_num);

@@ -8,14 +8,9 @@
 	<script src="chat.js"></script>
 	<link rel="stylesheet" type="text/css" href="highlight/tomorrow-night.css" />
 	<script src="highlight/highlight.pack.js"></script>
-	<script>hljs.initHighlightingOnLoad();</script>
 	<script>
-		$(document).ready(function() {
-			window.slides.init();
-			// autoconnect if page is not loaded as "slides.html", autoconnect
-			if (!window.location.match('slides.html'))
-				window.slides.reconnect();
-		});
+	slides.initOnLoad(); // transform document for slideshow, and open websocket
+	hljs.initHighlightingOnLoad(); // syntax hilighting for <pre><code> blocks
 	</script>
 </head>
 <body>
@@ -41,44 +36,124 @@
 	mike@nrdvana.net<br>
 	CPAN: NERDVANA<br>
 	</h3>
-	<h5>https://github.com/nrdvana/wide-world-of-websockets/</h5>
+	<h5>github.com/nrdvana/wide-world-of-websockets</h5>
 
 <li><h2>Overview</h2>
-	<ul class='auto-step'>
+	<ul>
 	<li>Purpose and Design of WebSockets
-	<li>Problems solved with WebSockets
-	<li>Event Driven Programming (in Perl 5)
-	<li>Available Implementations (in Perl 5)
-	<li>Conclusion and Recommendations
+	<li>Event Driven Programming and Concurrency
+	<li>Available Implementations in Perl5,<br>
+		Benefits / Limitations.
 	</ul>
 
 <li><h2>HTTP Request Lifecycle</h2>
-	<figure>
-	(image here)
-	</figure>
+	<img src="https-sequence.svg" width="80%">
 
 	<pre class="notes">
 	Familiar to most
-	Client starts TCP
+	Client starts TCP &amp; SSL,
+	   maybe re-use
 	Client requests resource
-	Server responds
+	Server procs req and responds
+	Always client-driven.
+	What if client wants to listen?
 	</pre>
 
-<li><h2>HTTP Long-poll</h2>
-	<figure>
-	(image here)
-	</figure>
+<li><h2>HTTP Long-poll "Comet"</h2>
+	<img src="comet-sequence.svg" width="80%">
 
 	<pre class="notes">
 	Client starts request
 	Server waits until it has something
-	User sees spinner on browser
-	What if server wants to send faster than client asks
+	Client renews to keep listening
+	Limited number of connections per server
+	New request means re-authenticating session
+	Doesn't work well for certain problems...
 	</pre>
 
-<li><h2>WebSockets</h2>
-	<figure>
+<li><h2>Example: Chat</h2>
+	<figure class='chat-app'>
 	</figure>
+
+	<pre class="notes">
+	Most common example of websocket
+	Minimal delay on chat messages
+	Not much improvement over Comet
+	Avoids "stampede" of new requests
+	</pre>
+
+<li><h2>Example: Monitoring</h2>
+	<figure class='stats-monitor'>
+	</figure>
+
+	<pre class="notes">
+	Small frequent data blocks would
+	be really inefficient with Comet
+	</pre>
+
+<li><h2>Example: Games</h2>
+	<figure class='asteroids'>
+	</figure>
+
+	<pre class="notes">
+	Just like previous, but bidirectional
+	</pre>
+
+<li><h2>Example: Intelligent File Upload</h2>
+
+	https://webdeltasync.github.io/
+
+	<pre class="notes">
+	Like rsync.
+	JavaScript can hash file locally
+	only transfer new parts of file.
+	Fast round-trips referring to same file
+	Would be waste to hit different worker each time
+	</pre>
+
+<li><h2>Example: Mining BitCoin on Browsers</h2>
+
+<!--
+<li><h2>Example: Status Feedback</h2>
+
+	<figure class='jobqueue'>
+	</figure>
+
+	<pre class="notes">
+	if 400 in queue, up to 400 websockets listening.
+	Each time back-end job starts, broadcast to web workers
+	399 "new position" notifications go out
+	1 connection gets progress updates until job complete
+	</pre>
+-->
+
+<li><h2>Example: iPad Apps</h2>
+
+	(like these slides!)
+
+	<pre class="notes">
+	iPad closed system, no perl
+	can write web-apps
+	event-driven is best model for UI
+	</pre>
+
+<li><h2>Why Not TCP</h2>
+	<ul class='auto-step'>
+	<li>Huge potential for abuse
+	<li>SSL implementation?
+	<li>Framing/parsing efficiency
+	<li>Just want plain "messages"
+	</ul>
+
+	<pre class="notes">
+	Want sockets for javascript
+	Huge potential abuse
+	Something safe, with SSL
+	SOCK_SEQPACKET would be nice
+	</pre>
+
+<li><h2>WebSocket Design</h2>
+	<img src="ws-sequence.svg" width="80%">
 
 	<pre class="notes">
     Starts as an HTTP(S) request
@@ -90,7 +165,22 @@
     Remains within SSL-encapsulated connection
 	</pre>
 
-<li class="dense"><h2>WebSockets</h2>
+<li><h2>WebSocket Message</h2>
+	<img src="ws-struct.svg" width="80%">
+
+<li><h2>WebSocket Tradeoffs</h2>
+	<ul class='auto-step'>
+	<li>Small payload overhead, quicker transfer
+	<li>Faster processing because state is preserved
+	<li>Loses stateless benefits of HTTP
+	</ul>
+
+	<pre class="notes">
+	Preserving state speeds up handling
+	Lose benefits of "Stateless"
+	</pre>
+
+<li class="dense"><h2>WebSocket Adoption</h2>
 	<ul class='auto-step'>
 	<li>Proposed in 2008
 	<li>Revised several times up to 2012
@@ -108,119 +198,103 @@
 	</ul>
 
 	<pre class="notes">
-	Reaching sweet spot
+	Nearly ubiquitous now
 	Most old phones gone
 	Most old Macs gone
 	Opera matters for Wii
 	Flash workaround if you care
 	</pre>
 
-<li><h2>Example: Chat</h2>
-	<figure class='chat-app'>
-	</figure>
+<li><h2>WebSockets In Perl</h2>
+
+	But First...
 
 	<pre class="notes">
-	Minimal delay on chat messages
-	Most common example of websocket
+	Now you know what a websocket is and why you would use it.
+	Goal of this talk is to show all the ways to do websockets in
+	  Perl and discuss pros/cons.
+	However, many of the challenges involved with WebSockets are
+	the more general challenges involved with Event Driven Programming
+	and concurrency, so I'm going to review those topics first, to
+	make sure everyone on same page and using the same terminology.
 	</pre>
-<!--
-<li><h2>Example: Stock Ticker / Notification</h2>
+
+<li><h2>Event Driven Programming</h2>
+	<ul class="auto-step">
+	<li>Any program where next action is determined by
+	    the type of event it receives is "event-driven".
+	<li>But, any program that performs I/O is esentially
+	    "event-driven" as well.
+	<li>But most people mean "cooperative-multitasking"
+	    when they say "event-driven".
+	</ul>
+	<pre class="notes">
+  * The most basic type of program is one that runs one algorithm to calculate
+    an output from an input.
+  * You know all steps the program might take in advance, and write the code for
+    that sequence of steps.  If you need data that isn't immediately available,
+	you "block" the program until it is and then continue the sequence of steps.
+  * The other main kind of program is one whose progessing depends on external events.
+    The program has no goal aside from responding to events with various behavior.
+  * A web server is a form of event-driven program that we're all familiar with.
+  * The web server waits for client requests, then runs the request to completion and
+    sends a response.
+  * Each perl web framework is an exampe of some manner of tackling the problem of
+    how to link an incoming event to the relevant code.
+	</pre>
+
+<li><h2>Concurrency</h2>
+	<ul class="auto-step">
+	<li>Multiple Processes
+	<li>Multiple Threads
+	<li>Cooperative Multitasking
+	</ul>
+	</div>
 
 	<pre class="notes">
-	Want to avoid lots of polling
-	Want to see event as soon as it happens.
-	</pre>
--->
-<li><h2>Example: Watch presence of Client</h2>
-	<figure class='client-monitor'>
-	</figure>
-
-	<pre class="notes">
-	Server gets to choose how often to poll for presence of client
-	Heavily loaded server will poll less.  If clients poll, server might go down.
-	</pre>
-
-<li><h2>Example: Intelligent File Upload</h2>
-
-	https://webdeltasync.github.io/
-
-	<pre class="notes">
-	JavaScript can hash file locally
-	only transfer new parts of file
+  * Most of the time, you want an event-driven program to be able to respond to
+    multiple events at once, so that short events don't have to wait for longer
+	events to finish.  Or, just for capacity.
+  * Three main strategies are:
+    * Multiple independent processes which each process one event at a time
+	  (usually coordinated via filesystem or database)
+	* Multiple threads where each thread processes one event at a time
+	  (coordinated via shared data and synchronization "objects")
+	* Single thread written in non-blocking style
+  * Pro/Con matrix of each mechanism
+  * Perl doesn't get option 2, because no threads.  (But I don't really want it anyway,
+    because multithread synchronization is a mess.)
+  * Frameworks like Plack, Catalyst and Dancer use option 1, though you can get option 3
+    if you try hard enough.
+  * Frameworks like Mojo lend themselves naturally to option 3, though not required.
 	</pre>
 
-<li><h2>Example: Mining BitCoin on Browsers</h2>
-
-  (joke)
-
-<li><h2>Example: Waiting for job in queue, and job progress</h2>
-
-	<pre class="notes">
-	400 in queue, up to 400 websockets listening.
-	Each time back-end job starts, broadcast to web workers
-	399 "new position" notifications go out
-	1 connection gets progress updates until job complete
-	</pre>
-
-<li><h2>Example: iPad Apps</h2>
-
-	<pre class="notes">
-	iPad closed system, no perl
-	can write web-apps
-	event-driven is best model for UI
-	</pre>
-
-<li><h1>Event Driven Programming</h1>
-
-  * POSIX event sources:
-    * File handle read/write/error
-    * Timers
-    * Signals
-  * Linux:
-    * Inotify (file)
-	* Netlink (file)
-	* POSIX message queues (signal)
-  * Windows
-    * Thread/Window Message Queue
-	* Some things *can't* cause events, and must block
-  * Listen to all events at once
-
-	<pre class="notes">
-	quick version, entire talk of its own
-	can't discuss using websockets without
-	this background
-	also helps to frame discussion
-	</pre>
-
-<li class="dense"><h2>Event-driven: Popular Patterns</h2>
+<li class="dense"><h2>Event-driven Concurrency</h2>
 	<table class="data">
 	<tr><th>Blocking, Multi-Thread<th>Non-blocking, Event Loop
 	<tr><td>
 		<ul class="auto-step">
-		<li>Classic blocking design:<br>
-		    Kernel stops program while<br>
-			waiting for one event.
-		<li>Logical extension:<br>
-		    Kernel stops thread while<br>
-			waiting for one event.
-		<li>Run one thread for each event<br>
-			you are waiting on.
+		<li>One thread (or process) for<br>
+			each external event.<br>
+		<li>Thread blocks while waiting
+		    on internal events.
 		</ul>
 	<td><ul class="auto-step">
 		<li>Program makes a list of all<br>
-			events it is waiting for.
-		<li>Asks Kernel to wake it up when<br>
-			an event is ready.
+			pending external and internal events.
+		<li>Asks Kernel to wake it up when
+			any event is ready.
 		</ul>
 	</table>
 
 	<pre class="notes">
-	Event-driven usually refers to nonblocking event loop,
-	but contrast with active polling like video game
-	or realtime controls
+	Many threads are expensive
+	Internal events like DNS lookups, database queries
+	When kernel signals ready condition, app must now
+	dispatch between middles of event handlers.
 	</pre>
 
-<li class="dense"><h2>Event-Driven Patterns: Pros/Cons</h2>
+<li class="dense"><h2>Event-Driven Concurrency</h2>
 	<table class="data" data-step=0>
 	<tr><td style="visibility:hidden"><th>Multi-Thread<th>Event Loop
 	<tr><th data-step=1>Pros
@@ -232,7 +306,7 @@
 			</ul>
 		<td data-step=3>
 			<ul>
-			<li>Easy shared data
+			<li>Easy shared data/state
 			<li>Scales to many <u>events</u>
 			<li>Easy debugging (maybe)
 			</ul>
@@ -282,52 +356,44 @@
 	Go attempts hybrid approach
 	</pre>
 
-<li><h2>Natural Function Calls</h2>
-	<figure>
-	(animated image where function calls are shown as sideways tree)
-	</figure>
-	
-	<pre class="notes">
-	In code acting as "functions", call with
-	arguments and return result
-	function finishes calc before return
-	</pre>
-
-<li><h2>Event Loop Function Fragments</h2>
-	<figure>
-	(animated image where functions link events to next fragment)
-	</figure>
-	
-	<pre class="notes">
-	In eventloop pattern, functions must return to loop
-	each fragment must set up event
-	to trigger next fragment
-	</pre>
-
-<li><h2>Event Loop Basics</h2>
-	<h3>Event Types (unix):</h3>
-	<ul class="auto-step">
-	<li>I/O (read, close, write, accept, inotify)
-	<li>Signals (exit, reset, collect child process)
-	<li>Time
-	</ul>
-
-	<pre class="notes">
-	Unix has these needs
-	Windows has additional things like MQ
-	   Reaping threads, overlapped IO
-	</pre>
-
-<li><h2>Event Loop Basics</h2>
-	<h3>Implementation</h3>
-	<figure>
-	(scrolling animation of select() and surrounding code)
-	</figure>
+<li><h2>Simplified Unix Event Loop</h2>
+	<pre data-step='1-1'><code style="font-size:50%; margin-bottom:-10em;">
+	our %tasks= (
+		{
+			code => sub {...},
+			read_fh => \$handle,
+			write_fh => \$handle,
+			wake_time => $timestamp,
+		}
+	);
+	</code></pre>
+	<pre data-step='2-2'><code style="font-size:50%; margin-bottom:-10em;">
+	while (!$terminate) {
+		my $need_read= make_fh_bitvector( map $_->{read_fh}, values %tasks );
+		my $need_write= make_fh_bitvector( map $_->{write_fh}, values %tasks );
+		my $check_err= combine_bitvectors( $need_read, $need_write );
+		my $timeout= min( map $_->{wake_time}, values %tasks );
+	   
+		$ret= select( $need_read, $need_write, $check_err, $timeout );
+	</code></pre>
+	<pre data-step='3-3'><code style="font-size:50%; margin-bottom:-10em;">
+		for ( values %tasks ) {
+			if ( bitvector_contains_fh( $need_read, $_->{read_fh} ) {
+				$_->{code}->() // run the callback
+			}
+			...
+			if ( $_->{wake_time} &lt; time) {
+				$_->{code}->()
+			}
+		}
+	</code></pre>
 
 	<pre class="notes">
-	clearly bit of a mess
-	especially details like signals
-	want to wrap that in a library
+	wrote simple example, still to messy
+	making even simpler example to skip detail
+	(explain)
+	In addition, there are signals, and child proc
+	Also want a better API to register the callbacks
 	</pre>
 
 <li><h2>Event Loop Implementations</h2>
@@ -345,6 +411,25 @@
 	Need to adapt modules to any event loop
 	</pre>
 
+<li><h2>Event Loop Wrappers</h2>
+	<ul>
+	<li>POE
+	<li>AnyEvent
+	<li>IO::Async
+	<li data-step=2>Mojo
+	</ul>
+
+<pre class="notes">
+POE oldest, longest back-compat
+  Bit awkward, best handling of refs
+AnyEvent is most minimal,
+  heavy callbacks, some social drama
+  extensive CPAN ecosystem
+IO::Async is a bit of a hybrid
+  also good cpan ecosystem
+</pre>
+
+<!--
 <li><h2>Event Loop Wrappers</h2>
 	<h3>POE</h3>
 	<ul>
@@ -382,6 +467,227 @@
 <li><figure>
 	(IO::Async code)
 	</figure>
+-->
+
+<li><h2>WebSockets In Perl</h2>
+
+<li><h2>Stand-alone</h2>
+<pre><code data-step='1-1'>
+use AnyEvent::WebSocket::Server;
+
+my $server= AnyEvent::WebSocket::Server->new(
+  handshake => sub {
+    my ($req, $res)= @_;
+    ... // decide whether to accept
+    return $res, ...; // can append calculated values
+  },
+);
+</code></pre>
+<pre><code data-step='2-2'>
+AnyEvent::Socket::tcp_server undef, 5000, sub {
+  my ($fh)= @_;
+  $server->establish($fh)->cb(sub {
+    my ($conn, ...)= eval { shift->recv };
+    if ($@) {
+      warn "Rejected connection: $@\n";
+      close($fh);
+      return;
+    }
+    $conn->on(each_message => sub { ... });
+    $conn->on(finish => sub { ... });
+  });
+};
+</code></pre>
+
+<li><h2>PSGI</h2>
+	<ul class='auto-step'>
+	<li data-step='1-1'>No explicit support??
+	<li>Ask for "Responder", then don't use it.
+	<li>Plack's WebSocket implementation invokes
+	    responder after closing the socket.
+	<li>Twiggy seems ok with this.
+	<li>Twiggy is the only PSGI server I know of
+	    that supports WebSockets anyway.
+	</ul>
+
+<li><h2>Plack</h2>
+	<pre><code class="perl">
+	Plack::App::WebSocket->new(
+		on_error => sub {
+			my $env = shift;
+			return [500,
+					["Content-Type" => "text/plain"],
+					["Error: " . $env->{"plack.app.websocket.error"}]];
+		},
+		on_establish => sub {
+			my $conn = shift;   ## Plack::App::WebSocket::Connection object
+			my $env = shift;    ## PSGI env
+			my $hs_res = shift; ## extra results from the handshake callback
+			$conn->on(
+				message => sub {
+					my ($conn, $msg) = @_;
+					$conn->send($msg);
+				},
+				finish => sub {
+					undef $conn;
+					warn "Bye!!\n";
+				},
+			);
+		}
+	);
+	</code></pre>
+
+<li><h2>Web::Simple</h2>
+
+	Plack based... just return the same thing
+	when websocket URI is requested.
+
+<li><h2>Dancer</h2>
+	<ul class='auto-step'>
+	<li data-ste='1-1'>No (real) support.
+	<li>Has Dancer2::Plugin::WebSocket,
+	<li>...but just a wrapper around plack
+	<li>No Dancer session or Request <br>
+		during handshake
+	<li>Only one websocket URI per app.
+	</ul>
+
+<li><h2>Catalyst</h2>
+	<ul class='auto-step'>
+	<li>No support
+	<li>..unless you call some private
+	    methods on Catalyst internals.
+	</ul>
+
+<li><h2>Mojolicious</h2>
+	<ul class='auto-step'>
+	<li>Excellent Support
+	<li>Mojo was written specifically<br>
+		for non-blocking needs.
+	<li>Slides and demos are written in Mojo
+	</ul>
+
+<!-- example -->
+
+<li><h2>CGI</h2>
+	<ul class='auto-step'>
+	<li>Can actually work if user pool is<br>
+	    small enough and server is big enough.
+	<li>Might be useful for legacy code<br>
+	    that needs to block.
+	</ul>
+
+<li><h2>Hybrid</h2>
+	<span data-step='0-0'>Why Make Monoliths?</span>
+	<ul class='auto-step'>
+	<li>Use Traefik / Nginx / Apache to divide application according to need.
+	<li>Handle normal web requests in Catalyst/Dancer
+	<li>Handle websocket messages in Mojo or stand-alone
+	<li>Link it all together with Postgres event notifications
+	<li>Or, just make microservices
+	</ul>
+
+<li><h2>Hybrid with Traefik</h2>
+	<ul class='auto-step'>
+	<li>Install Docker
+	<li>Make Docker Go
+	<li>Install Traefik
+	<li>Make Traefik Go
+	<li>Run Dancer/Catalyst container
+	<li>Run Mojo/AnyEvent container
+	</ul>
+
+<li><h2>docker-compose.yaml</h2>
+	<pre><code class="yaml">
+	version: '3'
+
+	services:
+	  traefik:
+		image: traefik:1.6
+		container_name: traefik
+		volumes:
+		  - "./traefik.toml:/etc/traefik/traefik.toml"
+		  - "./acme:/etc/traefik/acme/"
+		  - "/var/run/docker.sock:/var/run/docker.sock"
+		ports:
+		  - "$MyPublicIP:80:80/tcp"
+		  - "$MyPublicIP:443:443/tcp"
+		environment:
+		  - "TRAEFIK_INSECURE_SKIP=true"
+		networks:
+		  - traefik-net
+
+	networks:
+	  traefik-net:
+		external: true
+	</code></pre>
+
+<li><h2>traefik.toml</h2>
+	<pre><code class="yaml">
+	defaultEntryPoints = ["https","http"]
+	debug = true
+
+	[entryPoints]
+	  [entryPoints.http]
+	  address = ":80"
+	  [entryPoints.https]
+	  address = ":443"
+		[entryPoints.https.tls]
+
+	[acme]
+	email = "Myself@example.com"
+	storage = "/etc/traefik/acme/acme.json"
+	onDemand = true
+	onHostRule = true
+	caServer = "https://acme-v02.api.letsencrypt.org/directory"
+	entryPoint = "https"
+	  [acme.httpChallenge]
+	  entryPoint = "http"
+
+	[docker]
+	endpoint = "unix:///var/run/docker.sock"
+	watch = true
+	templateVersion = 2
+	exposedByDefault = false
+	usebindportip = false
+	swarmMode = false
+
+	[api]
+
+	[retry]
+	</code></pre>
+
+<li><h2>Mount service using Docker labels
+	<pre><code class="bash">
+		--label "traefik.enable=true"
+		--label "traefik.docker.network=traefik-net"
+		--label "traefik.frontend.entryPoints=http,https"
+		--label "traefik.frontend.rule=Host:example.com; PathPrefixStrip: /ws"
+		--label "traefik.port=80"
+	</code></pre>
+
+<li><h2>Summary</h2>
+	<ul>
+	<li>Prime-time has arrived for WebSockets
+	<li>Lots of options.  Easy to get started.
+	<li>Bigger learning curve is just getting<br>
+		familiar with non-blocking programming.
+	</ul>
+
+<li class='dense'><h2>Summary</h2>
+	<table cellpadding=4>
+	<tr><td>Slides&nbsp;</td><td>github.com/nrdvana/wide-world-of-websockets</td></tr>
+	<tr><td>Modules&nbsp;</td><td>
+		<table>
+		<tr><th>Module</th>                   <th>Based On...</th></tr>
+		<tr><td>Protocol::WebSocket
+		<tr><td>AnyEvent::WebSocket::Server   <td>Protocol::WebSocket
+		<tr><td>Plack::App::WebSocket         <td>AnyEvent::WebSocket::Server
+		<tr><td>Mojo::Transaction::WebSocket
+		<tr><td>Amon2::Plugin::Web::WebSocket <td>Protocol::WebSocket
+		</table>
+	</td></tr>
+	</table>
 
 </ol>
 </body>
