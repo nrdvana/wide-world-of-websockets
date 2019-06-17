@@ -3,6 +3,9 @@ use Log::Any '$log';
 use Log::Any::Adapter 'Daemontools', -init => { env => 1 };
 use Mojolicious::Lite -signatures;
 use Mojo::WebSocket 'WS_PING';
+use Time::HiRes 'time';
+use Socket qw(IPPROTO_TCP TCP_NODELAY TCP_CORK);
+use IO::All;
 
 our $presenter_key= $ENV{PRESENTER_KEY} or die "Missing env PRESENTER_KEY";
 @ARGV= qw( daemon --listen=http://*:3210 ) unless @ARGV;
@@ -21,6 +24,7 @@ get '/presenter' => sub ($c) {
 
 my $cur_extern= '';
 my %viewers;
+my $stattimer;
 websocket '/slidelink.io' => sub {
 	my $c= shift;
 	my $id= $c->req->request_id;
@@ -51,13 +55,28 @@ websocket '/slidelink.io' => sub {
 			.' extern='.($msg->{extern}//'-')
 		);
 		if (defined $msg->{extern} && $c->stash('driver')) {
-			#if ($extern_pid) {
-			#	kill TERM => $extern_pid;
-			#	undef $extern_pid;
-			#}
-			#$log->info("Launch $msg->{extern}");
-			#$cur_extern= $msg->{extern};
-			#run_extern($msg->{extern}, $msg->{elem_rect});
+			if ($msg->{extern} eq 'stats') {
+				$log->info("Stats active");
+				my $prev_t= time;
+				my $prev_rx= io('/sys/class/net/wlp2s0/statistics/rx_bytes')->slurp + 0;
+				my $prev_tx= io('/sys/class/net/wlp2s0/statistics/tx_bytes')->slurp + 0;
+				$stattimer= Mojo::IOLoop->recurring(.1 => sub {
+					my $loop= shift;
+					my $now= time;
+					my $rx= io('/sys/class/net/wlp2s0/statistics/rx_bytes')->slurp + 0;
+					my $tx= io('/sys/class/net/wlp2s0/statistics/tx_bytes')->slurp + 0;
+					my $dt= $now - $prev_t;
+					update_stats(rx_rate => ($rx-$prev_rx)/$dt, tx_rate => ($tx-$prev_tx)/$dt);
+					$prev_t= $now;
+					$prev_rx= $rx;
+					$prev_tx= $tx;
+					$log->info("rx $rx tx $tx");
+				});
+			}
+			elsif ($stattimer) {
+				$log->info("Stats off");
+				Mojo::IOLoop->remove($stattimer);
+			}
 		}
 		if (defined $msg->{slide_num} && $c->stash('driver')) {
 			$_ ne $c && $_->send({ json => { slide_num => $msg->{slide_num}, step_num => $msg->{step_num} }})
@@ -105,6 +124,10 @@ my %stats_monitors;
 websocket '/stats.io' => sub {
 	my $c= shift;
 	$stats_monitors{$c}= $c;
+	#use DDP; &p($c->tx->req->env);
+	# How do I get to the socket of a mojo transaction?
+	#setsockopt($c->tx->handshake->connection, IPPROTO_TCP, TCP_NODELAY, 1) || warn "setsockopt failed: $!";
+	#setsockopt($c->tx->handshake->connection, IPPROTO_TCP, TCP_CORK, 0) || warn "setsockopt failed: $!";
 	$c->on(finish => sub { delete $stats_monitors{$c} });
 };
 sub update_stats {

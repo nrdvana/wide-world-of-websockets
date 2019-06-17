@@ -81,6 +81,7 @@ li { margin-bottom: .2em; }
 .chatline { width: 640px; }
 .chatline input { display: inline-block; background-color: #EEE; color: black; width: 80%; }
 .chatline button { display: inline-block; width: 15%; }
+.slide pre { text-align: left; }
 .slide code { white-space: pre; font-size: 40%; margin:4px; text-align: left; }
 
 h1.loud { font-size: 200%; }

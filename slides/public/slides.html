@@ -7,11 +7,13 @@
 	<script src="jquery-3.3.1.min.js"></script>
 	<script src="slides.js"></script>
 	<script src="chat.js"></script>
+	<script src="stats.js"></script>
 	<link rel="stylesheet" type="text/css" href="highlight/tomorrow-night.css" />
 	<script>
 	$(document).ready(function() {
 		slides.init(); // transform document for slideshow, and open websocket
 		hljs.initHighlightingOnLoad(); // syntax hilighting for <pre><code> blocks
+		stats.init();
 	});
 	</script>
 </head>
@@ -80,7 +82,8 @@
 	</pre>
 
 <li><h2>Example: Monitoring</h2>
-	<figure class='stats-monitor'>
+	<figure class='stats-monitor' data-extern='stats'>
+	
 	</figure>
 
 	<pre class="notes">
@@ -469,7 +472,24 @@ IO::Async is a bit of a hybrid
 
 <li><h2>WebSockets In Perl</h2>
 
-<li><h2>Stand-alone</h2>
+	<span data-step=1>(finally)</span>
+
+<li><h2>WebSocket Protocol Util</h2>
+	<ul>
+	<li>Protocol::WebSocket
+	<li>Net::WebSocket
+	<li>Mojo::WebSocket
+	</ul>
+
+<li><h2>Stand-alone Servers</h2>
+	<ul>
+	<li>AnyEvent::WebSocket::Server
+	<li>Net::Async::WebSocket  <span style="opacity:.7">(IO::Async)</span>
+	<li>POE::Component::Client::WebSocket;
+	<li>Net::WebSocket::Server
+	</ul>
+
+<li><h2>Stand-alone with AnyEvent</h2>
 <pre><code data-step='1-1' style="font-size:50%; margin-bottom:-10em;">
 use AnyEvent::WebSocket::Server;
 

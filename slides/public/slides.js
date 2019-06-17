@@ -355,7 +355,7 @@ window.slides= {
 			}
 			else if (changed && (prev_extern || this.cur_extern)) {
 				this.emit_extern_event({
-					extern: this.mode == 'presenter'? null : this.cur_extern? this.cur_extern : '-',
+					extern: this.mode == 'main'? (this.cur_extern? this.cur_extern : '-') : null,
 					elem_rect:
 						this.cur_figure? this.client_rect(this.cur_figure)
 						: this.slide_num? this.client_rect(this.slide_elems[this.slide_num-1])

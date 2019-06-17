@@ -51,5 +51,3 @@ window.chat= {
 		}
 	}
 };
-
-$(document).ready(function() { window.chat.init(); });
