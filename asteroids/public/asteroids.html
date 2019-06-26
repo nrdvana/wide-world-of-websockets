@@ -6,9 +6,10 @@
 	<script src="asteroids.js"></script>
 	<script>
 	$(document).ready(function() {
+		var app_base_uri= window.location.host + window.location.pathname.replace('[^/]*$', '');
 		asteroids.init(
 			document.getElementById("asteroids-canvas"),
-			(window.location.protocol == 'http:' ? 'ws://' : 'wss://') + window.location.host + '/asteroids.io'
+			(window.location.protocol == 'http:' ? 'ws://' : 'wss://') + app_base_uri + 'asteroids.io'
 		);
 		document.getElementById('asteroids-canvas').focus();
 	});
