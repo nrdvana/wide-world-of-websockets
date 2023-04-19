@@ -35,8 +35,8 @@ my $app= sub {
 		open(my $fh, '<', '../static/chat.html') or return [ 500, [], ["Can't open ../static/chat.html"] ];
 		return [ 200, ['Content-Type'=>'text/html;charset=UTF-8'], $fh ];
 	}
-	elsif ($env->{PATH_INFO} eq '/jquery-3.3.1.min.js') {
-		open(my $fh, '<', '../static/jquery-3.3.1.min.js') or return [ 500, [], ["Can't open ../static/jquery-3.3.1.min.js"] ];
+	elsif ($env->{PATH_INFO} eq '/jquery-3.5.0.min.js') {
+		open(my $fh, '<', '../static/jquery-3.5.0.min.js') or return [ 500, [], ["Can't open ../static/jquery-3.5.0.min.js"] ];
 		return [ 200, ['Content-Type'=>'application/javascript;charset=UTF-8'], $fh ];
 	}
 	elsif ($env->{PATH_INFO} eq '/chat.io') {
