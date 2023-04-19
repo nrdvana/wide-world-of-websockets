@@ -3,11 +3,11 @@
 	<title>Asteroids</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<script src="jquery-3.3.1.min.js"></script>
-	<script src="asteroids.js"></script>
+	<script src="asteroids.js?v=0.01"></script>
 	<script>
 	$(document).ready(function() {
 		var app_base_uri= window.location.host + window.location.pathname.replace('[^/]*$', '');
-		asteroids.init(
+		window.asteroids= new Asteroids(
 			document.getElementById("asteroids-canvas"),
 			(window.location.protocol == 'http:' ? 'ws://' : 'wss://') + app_base_uri + 'asteroids.io'
 		);
@@ -20,5 +20,6 @@
 </head>
 <body>
 	<canvas id="asteroids-canvas" tabindex=1 width=256 height=256 style="width:640px; height:640px"></canvas>
+	<div style="align: center"><button class="reconnect">Reconnect</button></div>
 </body>
 </html>

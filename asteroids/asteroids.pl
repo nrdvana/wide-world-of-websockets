@@ -1,16 +1,13 @@
 #! /usr/bin/env perl
 use utf8;
-use Log::Any '$log';
-use Log::Any::Adapter 'Daemontools', -init => { env => 1 };
 use Mojolicious::Lite -signatures;
 use Mojo::WebSocket 'WS_PING';
 use Time::HiRes 'time';
 use Math::Trig qw( pi );
 use Socket qw(IPPROTO_TCP TCP_NODELAY TCP_CORK);
-use IO::All;
 use JSON;
 
-app->secrets(['sdjflskjdflsejf']);
+app->secrets([rand]);
 
 get '/' => sub($c) { $c->reply->static('asteroids.html'); };
 
@@ -18,11 +15,13 @@ my %players;
 my @bullets;
 my @asteroids;
 my $pending_update= 0;
+$|= 1;
 websocket '/asteroids.io' => sub($c) {
 	my $id= $c->req->request_id;
 	$players{$id}= { ship => Ship->new(x => 100, y => 100, color => 'white'), c => $c, id => $id, thrust => 0, turn => 0 };
 	update_all();
 	$c->inactivity_timeout(600);
+	say "Connection from player $id";
 	$c->on(json => sub($c, $msg) {
 		my $t= time;
 		$players{$id}{ship}->update($t); # update all ship variables to current time
@@ -48,7 +47,11 @@ websocket '/asteroids.io' => sub($c) {
 			update_all();
 		}
 	});
-	$c->on(finish => sub { delete $players{$id} });
+	$c->on(finish => sub {
+		delete $players{$id};
+		say "Player $id disconnected";
+		update_all();
+	});
 };
 
 package Ship {

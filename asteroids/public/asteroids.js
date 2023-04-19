@@ -1,44 +1,61 @@
-window.asteroids= {
-	init: function(target, ws_uri) {
+function Asteroids(target, ws_uri) {
+	var self= this;
+	this.shipPath= new Path2D();
+	this.shipPath.moveTo(6,0);
+	this.shipPath.lineTo(-4,4);
+	this.shipPath.lineTo(-2,0);
+	this.shipPath.lineTo(-4,-4);
+	this.shipPath.closePath();
+	this.canvas= target;
+	this.ws_uri= ws_uri;
+	this.state= { t: 0, client_t: 0, ships: [], bullets: [], asteroids: [] };
+	$(window).on('keydown', function(e) { return self.handle_key(e.originalEvent, true); });
+	$(window).on('keyup', function(e) { return self.handle_key(e.originalEvent, false); });
+	$('button.reconnect').click(function(){ self.reconnect() });
+	//var t= +new Date()*.001;
+	//this.state= {
+	//	t: t,
+	//	client_t: t,
+	//	ships: [
+	//		{ t: t, x: 100, y: 100, dx: 1, dy: 1, a: 0, da: 0 }
+	//	],
+	//	bullets: [
+	//		{ t: t, x: 200, y: 100, dx: 0, dy: 0 }
+	//	],
+	//	axsteroids: [
+	//	//	{ t: t, x: 300, y: 100, dx: .1, dy: .1, a: 0, da: .25,
+	//	//		poly: [ [-10,-10], [-10,10], [10,10], [10,-10] ]
+	//	//	}
+	//	]
+	//};
+	this.turn=0;
+	this.thrust=0;
+	this.shoot=0;
+	window.setTimeout(function(){ self.reconnect() }, 0);
+}
+Object.assign(Asteroids.prototype, {
+	reconnect: function() {
 		var self= this;
-		this.shipPath= new Path2D();
-		this.shipPath.moveTo(6,0);
-		this.shipPath.lineTo(-4,4);
-		this.shipPath.lineTo(-2,0);
-		this.shipPath.lineTo(-4,-4);
-		this.shipPath.closePath();
-		this.canvas= target;
-		this.ws_uri= ws_uri;
-		this.state= { t: 0, client_t: 0, ships: [], bullets: [], asteroids: [] };
-		this.ws= new WebSocket(ws_uri);
-		this.ws.onmessage= function(event) {
-			self.state= JSON.parse(event.data);
-			self.state.client_t= .001 * new Date();
-		};
-		this.ws.onclose= function(event) { self.ws= null; };
-		$(target).on('keydown', function(e) { return self.handle_key(e.originalEvent, true); });
-		$(target).on('keyup', function(e) { return self.handle_key(e.originalEvent, false); });
-		//var t= +new Date()*.001;
-		//this.state= {
-		//	t: t,
-		//	client_t: t,
-		//	ships: [
-		//		{ t: t, x: 100, y: 100, dx: 1, dy: 1, a: 0, da: 0 }
-		//	],
-		//	bullets: [
-		//		{ t: t, x: 200, y: 100, dx: 0, dy: 0 }
-		//	],
-		//	asteroids: [
-		//	//	{ t: t, x: 300, y: 100, dx: .1, dy: .1, a: 0, da: .25,
-		//	//		poly: [ [-10,-10], [-10,10], [10,10], [10,-10] ]
-		//	//	}
-		//	]
-		//};
-		this.timer= window.setInterval(function(){ self.render() }, 50);
-		this.turn=0;
-		this.thrust=0;
-		this.shoot=0;
-		console.log(this.canvas);
+		this.ws= new WebSocket(this.ws_uri);
+		this.ws.onmessage= function(event) { self._handle_ws_message(JSON.parse(event.data)) }
+		this.ws.onopen= function(event) { self._handle_connect(event) }
+		this.ws.onclose= function(event) { self._handle_disconnect(event) }
+	},
+	_handle_ws_message: function(data) {
+		this.state= data;
+		this.state.client_t= .001 * new Date();
+	},
+	_handle_connect: function(event, ws_uri) {
+		var self= this;
+		this.timer= window.setInterval(function(){ self.render() }, 33);
+		$('button.reconnect').hide();
+	},
+	_handle_disconnect: function(event) {
+		console.log("closing ", this.ws, event);
+		this.ws= null;
+		window.clearInterval(this.timer);
+		delete this.timer;
+		$('button.reconnect').show();
 	},
 	handle_key: function(e, press) {
 		// Ignore keys for input elements within the slides
@@ -160,4 +177,4 @@ window.asteroids= {
 		cx.stroke();
 		cx.setTransform(1, 0, 0, 1, 0, 0);
 	}
-};
+});
