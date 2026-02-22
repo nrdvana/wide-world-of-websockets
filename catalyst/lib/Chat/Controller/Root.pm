@@ -64,16 +64,13 @@ sub chat_io :Path('chat.io') :Args(0) {
 		_respond_err($c, 400, 'Unsupported version of WebSocket');
 	}
 	else {
-		# Fool catalyst into thinking it gave us a writer object
-		$c->res->{_writer}= 1;
-		$c->res->{write_fh}= 1;
-		my $responder= $c->res->_response_cb or die "Unexpected Catalyst state";
-		# Now Catalyst thinks we will continue writing using that $writer object, but we skip that
-		# and just write directly to the psgix.io handle.
-		my $fh= $env->{'psgix.io'};
+		# Tell Catalyst that we're handling the rest of the communications with the client,
+		# by accessing the io_fh attribute.
+		my $fh= $c->req->io_fh;
+		# AnyEvent::WebSocket::Server handles the rest
 		AnyEvent::WebSocket::Server->new->establish_psgi($env)->cb(sub {
-			my ($conn)= eval { shift->recv };
-			if ($@) {
+			my $conn;
+			unless (eval { $conn= shift->recv; 1 }) {
 				warn "Rejected connection: $@\n";
 				close($fh);
 				return;
@@ -86,7 +83,7 @@ sub chat_io :Path('chat.io') :Args(0) {
 			else {
 				$self->connections->{$username}= $conn;
 				$conn->on(each_message => sub { my @args= @_; eval { $self->handle_message($username, @args); 1 } || warn $@ });
-				$conn->on(finish => sub { delete $self->connections->{$username}; undef $responder });
+				$conn->on(finish => sub { delete $self->connections->{$username} });
 			}
 		});
 		$c->detach();
